@@ -1,0 +1,32 @@
+PROGRAM → { DECLS STMTS }
+DECLS → DECLS DECL
+    | ε
+DECL → var id VARS: TYPE ;
+VARS → , id VARS
+    | ε
+TYPE → int
+STMTS → STMTS STMT
+    | ε
+STMT → SIMP ;
+    | CONTROL
+    | ;
+SIMP → id ASOP EXP
+    | print EXP
+CONTROL → if ( EXP ) BLOCK ELSE-BLC
+    | while ( EXP ) BLOCK
+    | for ( SIMP ; EXP ; SIMP ) BLOCK
+    | continue ;
+    | break ;
+ELSE-BLC → else BLOCK
+    | ε
+BLOCK → STMT
+    | { STMTS }
+EXP → (EXP)
+    | num
+    | id
+    | UNOP EXP
+    | EXP BINOP EXP
+ASOP → =|+=|-=|*= |/=|%=
+BINOP → +|-|*|/ |%|<|<=|>|>=|==|!=
+    | &&|||
+UNOP→ !|-
