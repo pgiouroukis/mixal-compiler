@@ -68,7 +68,6 @@ impl Parser {
         // We don't want this behaviour here, since we only care about the enum variant equality
         if mem::discriminant(&self.tokens[self.pos]) == mem::discriminant(token) {
             println!("consumed: {:?}", self.tokens[self.pos]);
-            self.next_token();
             return true;
         }
         return false;
@@ -110,6 +109,7 @@ impl Parser {
                         did_match_token = false;
                         break;
                     }
+                    self.next_token();
                 },
                 Rhs::Nonterminal(fn_to_run) => {
                     if !fn_to_run(self)  {
