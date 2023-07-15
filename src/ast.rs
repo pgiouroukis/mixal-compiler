@@ -1,8 +1,6 @@
 use std::mem;
 use crate::lexer::Token;
 
-const MAX_RECURSION_DEPTH: usize = 5;
-
 // Implementation of the language's parser.
 // You can check the grammar of the language
 // in <repo_root>/docs/grammar.txt
@@ -23,38 +21,22 @@ impl Parser {
     }
 
     fn program_rule(&mut self) -> bool {
-        if 
-            self.current_token_matches(&Token::LeftBrace) &&
-            self.decls_rule(0) &&
-            self.current_token_matches(&Token::RightBrace)
-        {
-            return true;
-        }
-        return false;
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Terminal(Token::LeftBrace),
+                Rhs::Nonterminal(Parser::decls_rule),
+                Rhs::Terminal(Token::RightBrace)
+            ]
+        ], false);
     }
 
-    // This rule is left-recursive, so it may loop forever. We (temporarily)
-    // handle this by using the MAX_RECURSION_DEPTH constant to allow only 
-    // a specific amount of recursion depth. This is not correct, 
-    // since it sets a limit on the amount of productions for this rule.
-    // To fix this, we need to make some changes to the grammar in order
-    // to eliminate any left-recursiveness. For now, we let it as is
-    // and we will fix it in the future. Once fixed, we can use the generic
-    // method 'Parser::run_rules_from_rhs' to express the rule and be
-    // consistent with the rest of the rules
-    // TODO: eliminate left-recursive rules from the grammar and fix
-    //       rules that are recursive
-    fn decls_rule(&mut self, depth: usize) -> bool {
-        if depth > MAX_RECURSION_DEPTH {
-            return false;
-        }
-        if 
-            self.decls_rule(depth + 1) &&
-            self.decl_rule() 
-        {
-            return true; 
-        }
-        return true;
+    fn decls_rule(&mut self) -> bool {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::decl_rule),
+                Rhs::Nonterminal(Parser::decls_rule)
+            ]
+        ], true);
     }
 
     fn decl_rule(&mut self) -> bool {
