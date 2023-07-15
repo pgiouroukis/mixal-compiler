@@ -87,6 +87,20 @@ impl Parser {
         return contains_epsilon;
     }
 
+    // Consider the scenario in which a rhs is matched all the way
+    // until the last element. This means that we have consumed 
+    // all but the last tokens, but the rule itself failed and returned false.
+    // The caller of this function (i.e. a Nonterminal production rule) 
+    // will receive false. If the caller does not contain an epsilon rule,
+    // then the code works as expected, since the caller will also fail and
+    // it will propagate the message. But, what if the caller contains an epsilon
+    // rule. Then, we consumed all but the last tokens of this rule, but the
+    // rule was not eventually matched. We need to handle that by keeping
+    // track of the consumed tokens and 'returning them back' if the rule
+    // is not matched.
+    // TODO: Add counting functionality to count the number of tokens
+    //       consumed and return the tokens back if the rule is 
+    //       eventually not matched 
     fn run_single_rule_from_rhs(&mut self, rhs:&Vec<Rhs>) -> bool {
         let mut did_match_token = true;
         for rhs_element in rhs.iter() {
@@ -198,4 +212,16 @@ mod tests {
         let mut parser = Parser::new(tokens);
         assert_eq!(parser.analyze_grammar(), false);
     }
+
+    #[test]
+    fn test_failed_parsing_no_semicolon_at_eol() {
+        let program = String::from(
+            "{ \
+                var first, second, third : int \
+            }",
+        );
+        let tokens = get_tokens_from_program(&program);
+        let mut parser = Parser::new(tokens);
+        assert_eq!(parser.analyze_grammar(), false);
+    }    
 }
