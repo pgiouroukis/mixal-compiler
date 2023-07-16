@@ -53,6 +53,21 @@ pub enum Token {
 
     #[token("=")]
     Assign,
+
+    #[token("!")]
+    ExclamationMark,
+
+    #[token("+=")]
+    Increment,
+    #[token("-=")]
+    Decrement,
+    #[token("*=")]
+    Multiply,
+    #[token("/=")]
+    Divide,
+    #[token("%=")]
+    Modulo,
+
     #[token("==")]
     Equals,
     #[token("!=")]
