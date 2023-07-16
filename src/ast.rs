@@ -16,11 +16,10 @@ impl Parser {
     }
 
     pub fn analyze_grammar(&mut self) -> bool {
-        // TODO: check for any remaining unconsumed tokens after the parsing is finished
-        return self.program_rule();
+        return self.program_rule().tokens_consumed == self.tokens.len();
     }
 
-    fn program_rule(&mut self) -> bool {
+    fn program_rule(&mut self) -> RuleResult {
         return self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Terminal(Token::LeftBrace),
@@ -30,7 +29,7 @@ impl Parser {
         ], false);
     }
 
-    fn decls_rule(&mut self) -> bool {
+    fn decls_rule(&mut self) -> RuleResult {
         return self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Nonterminal(Parser::decl_rule),
@@ -39,7 +38,7 @@ impl Parser {
         ], true);
     }
 
-    fn decl_rule(&mut self) -> bool {
+    fn decl_rule(&mut self) -> RuleResult {
         return self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Terminal(Token::Var),
@@ -52,7 +51,7 @@ impl Parser {
         ], false);
     }
 
-    fn vars_rule(&mut self) -> bool {
+    fn vars_rule(&mut self) -> RuleResult {
         return self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Terminal(Token::Comma),
@@ -77,13 +76,21 @@ impl Parser {
         self.pos += 1;
     }
 
-    fn run_rules_from_rhs(&mut self, rhs: Vec<Vec<Rhs>>, contains_epsilon: bool) -> bool {
+    fn back_n_tokens(&mut self, n: usize) {
+        self.pos -= n;
+    }
+
+    fn run_rules_from_rhs(&mut self, rhs: Vec<Vec<Rhs>>, contains_epsilon: bool) -> RuleResult {
         for rule in rhs.iter() {
-            if self.run_single_rule_from_rhs(rule) {
-                return true;
+            let rule_result = self.run_single_rule_from_rhs(rule);
+            if rule_result.matched {
+                return RuleResult{
+                    matched: true, 
+                    tokens_consumed: rule_result.tokens_consumed
+                };
             }
         }
-        return contains_epsilon;
+        return RuleResult{matched: contains_epsilon, tokens_consumed: 0};
     }
 
     // Consider the scenario in which a rhs is matched all the way
@@ -94,41 +101,54 @@ impl Parser {
     // then the code works as expected, since the caller will also fail and
     // it will propagate the message. But, what if the caller contains an epsilon
     // rule. Then, we consumed all but the last tokens of this rule, but the
-    // rule was not eventually matched. We need to handle that by keeping
+    // rule was not eventually matched. In this method, we handle that by keeping
     // track of the consumed tokens and 'returning them back' if the rule
     // is not matched.
-    // TODO: Add counting functionality to count the number of tokens
-    //       consumed and return the tokens back if the rule is 
-    //       eventually not matched 
-    fn run_single_rule_from_rhs(&mut self, rhs:&Vec<Rhs>) -> bool {
-        let mut did_match_token = true;
+    fn run_single_rule_from_rhs(&mut self, rhs:&Vec<Rhs>) -> RuleResult {
+        let mut count_tokens_matched = 0;
         for rhs_element in rhs.iter() {
             match rhs_element {
                 Rhs::Terminal(token) => {
                     if !self.current_token_matches(&token) {
-                        did_match_token = false;
-                        break;
+                        return RuleResult{
+                            matched: false, 
+                            tokens_consumed: count_tokens_matched
+                        }
                     }
+                    count_tokens_matched += 1;
                     self.next_token();
                 },
                 Rhs::Nonterminal(fn_to_run) => {
-                    if !fn_to_run(self)  {
-                        did_match_token = false;                        
-                        break;
+                    let rule_result = fn_to_run(self);
+                    if !rule_result.matched  {
+                        self.back_n_tokens(rule_result.tokens_consumed);
+                        return RuleResult {
+                            matched: false,
+                            tokens_consumed: count_tokens_matched
+                        }
                     }
+                    count_tokens_matched += rule_result.tokens_consumed;
                 }
             }
         }
-        // We don't check 'contains_epsilon_rule' at this method
-        // because we want to consume as many tokens as possible
-        return did_match_token;
+
+        return RuleResult{
+            matched: true,
+            tokens_consumed: count_tokens_matched
+         };
     }
 
 }
 
+// This struct models the result of an attempt to match a rule.
+pub struct RuleResult {
+    pub matched: bool,          // Whether the rule was matched or not
+    pub tokens_consumed: usize  // How many tokens did the rule consume until matched or failure
+}
+
 pub enum Rhs {
     Terminal(Token),
-    Nonterminal(fn(&mut Parser) -> bool)
+    Nonterminal(fn(&mut Parser) -> RuleResult)
 }
 
 // ------------------------------------------------------
