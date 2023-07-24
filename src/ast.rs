@@ -24,6 +24,7 @@ impl Parser {
             vec![
                 Rhs::Terminal(Token::LeftBrace),
                 Rhs::Nonterminal(Parser::decls_rule),
+                Rhs::Nonterminal(Parser::stmts_rule),
                 Rhs::Terminal(Token::RightBrace)
             ]
         ], false);
@@ -59,6 +60,109 @@ impl Parser {
                 Rhs::Nonterminal(Parser::vars_rule)
             ]
         ], true);
+    }
+
+    fn stmts_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::stmt_rule),
+                Rhs::Nonterminal(Parser::stmts_rule)
+            ]
+        ], true)
+    }
+
+    fn stmt_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::simp_rule),
+                Rhs::Terminal(Token::Semicolon)
+            ],
+            vec![Rhs::Terminal(Token::Semicolon)]
+        ], false)
+    }
+
+    fn simp_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Terminal(Token::Id(String::from("_"))),
+                Rhs::Nonterminal(Parser::asop_rule),
+                Rhs::Nonterminal(Parser::exp_rule),
+            ],
+            vec![
+                Rhs::Terminal(Token::Print),
+                Rhs::Nonterminal(Parser::exp_rule)
+            ]
+        ], false)
+    }
+
+    fn exp_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Terminal(Token::LeftParen),
+                Rhs::Nonterminal(Parser::exp_rule),
+                Rhs::Terminal(Token::RightParen),
+                Rhs::Nonterminal(Parser::exp_recursion_rule),
+            ],
+            vec![
+                Rhs::Terminal(Token::Num(0)),
+                Rhs::Nonterminal(Parser::exp_recursion_rule),
+            ],
+            vec![
+                Rhs::Terminal(Token::Id(String::from("_"))), 
+                Rhs::Nonterminal(Parser::exp_recursion_rule),
+            ],
+            vec![
+                Rhs::Nonterminal(Parser::unop_rule),
+                Rhs::Nonterminal(Parser::exp_rule),
+                Rhs::Nonterminal(Parser::exp_recursion_rule),
+            ]
+        ], false);
+    }
+
+    fn exp_recursion_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::binop_rule),
+                Rhs::Nonterminal(Parser::exp_rule),
+                Rhs::Nonterminal(Parser::exp_recursion_rule),
+            ],
+        ], true);
+    }
+
+    fn asop_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![Rhs::Terminal(Token::Assignment)],
+            vec![Rhs::Terminal(Token::AdditionAssignment)],
+            vec![Rhs::Terminal(Token::SubtractionAssignment)],
+            vec![Rhs::Terminal(Token::MultiplicationAssignment)],
+            vec![Rhs::Terminal(Token::DivisionAssignment)],
+            vec![Rhs::Terminal(Token::ModuloAssignment)]
+        ], false)
+    }
+
+    fn binop_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![Rhs::Terminal(Token::Plus)],
+            vec![Rhs::Terminal(Token::Minus)],
+            vec![Rhs::Terminal(Token::Asterisk)],
+            vec![Rhs::Terminal(Token::Slash)],
+            vec![Rhs::Terminal(Token::Percent)],
+            vec![Rhs::Terminal(Token::LessThan)],
+            vec![Rhs::Terminal(Token::LessThanOrEquals)],
+            vec![Rhs::Terminal(Token::GreaterThan)],
+            vec![Rhs::Terminal(Token::GreaterThanOrEquals)],
+            vec![Rhs::Terminal(Token::Equals)],
+            vec![Rhs::Terminal(Token::NotEquals)],
+            vec![Rhs::Terminal(Token::And)],
+            vec![Rhs::Terminal(Token::Or)],
+        ], false)
+    }
+
+    fn unop_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![Rhs::Terminal(Token::ExclamationMark)],
+            vec![Rhs::Terminal(Token::Minus)],
+        ], false)        
     }
 
     fn current_token_matches(&mut self, token: &Token) -> bool {
@@ -131,7 +235,7 @@ impl Parser {
                 }
             }
         }
-
+        
         return RuleResult{
             matched: true,
             tokens_consumed: count_tokens_matched
@@ -243,5 +347,25 @@ mod tests {
         let tokens = get_tokens_from_program(&program);
         let mut parser = Parser::new(tokens);
         assert_eq!(parser.analyze_grammar(), false);
+    }
+
+    #[test]
+    fn test_expression_simple() {
+        let program = String::from(
+            "{ \
+                var first, second, third : int; \
+                first = 1 + 2; \
+                second = (first); \
+                second += 2; \
+                third = first + second / 2; \
+                third /= second * (first - second + ((42) + 1)); \
+                first = -5; \
+                print third; \
+                first = (second || third) && second; \
+            }",
+        );
+        let tokens = get_tokens_from_program(&program);
+        let mut parser = Parser::new(tokens);
+        assert_eq!(parser.analyze_grammar(), true);
     }    
 }
