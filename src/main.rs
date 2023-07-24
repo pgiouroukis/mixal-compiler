@@ -9,8 +9,8 @@ fn main() {
 
     let program: String = String::from(
         "{
-            var first, second, third : int \
-            var alpha, beta, gamma : int \
+            var first, second, third : int; \
+            var alpha, beta, gamma : int; \
         }",
     );
 

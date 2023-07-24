@@ -51,22 +51,22 @@ pub enum Token {
     #[token("%")]
     Percent,
 
-    #[token("=")]
-    Assign,
-
     #[token("!")]
     ExclamationMark,
 
+    #[token("=")]
+    Assignment,
+
     #[token("+=")]
-    Increment,
+    AdditionAssignment,
     #[token("-=")]
-    Decrement,
+    SubtractionAssignment,
     #[token("*=")]
-    Multiply,
+    MultiplicationAssignment,
     #[token("/=")]
-    Divide,
+    DivisionAssignment,
     #[token("%=")]
-    Modulo,
+    ModuloAssignment,
 
     #[token("==")]
     Equals,
