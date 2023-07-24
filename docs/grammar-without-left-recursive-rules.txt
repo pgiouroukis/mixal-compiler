@@ -1,0 +1,45 @@
+// Equivalent grammar with "docs/grammar.txt" but
+// with the left-recursive rules eliminated. This is
+// the grammar used to model the parser in the code.
+
+PROGRAM → { DECLS STMTS }
+DECLS → DECLS'
+DECLS' → DECL DECLS'
+    | ϵ
+DECL → var id VARS: TYPE ;
+VARS → , id VARS
+    | ϵ
+TYPE → int
+STMTS → STMTS'
+STMTS' → STMT STMTS'
+    | ϵ
+STMT → SIMP ;
+    | CONTROL
+    | ;
+SIMP → id ASOP EXP
+    | print EXP
+CONTROL → if ( EXP ) BLOCK ELSE-BLC
+    | while ( EXP ) BLOCK
+    | for ( SIMP ; EXP ; SIMP ) BLOCK
+    | continue ;
+    | break ;
+ELSE-BLC → else BLOCK
+    | ϵ
+BLOCK → id ASOP EXP ;
+    | print EXP ;
+    | if ( EXP ) BLOCK ELSE-BLC
+    | while ( EXP ) BLOCK
+    | for ( SIMP ; EXP ; SIMP ) BLOCK
+    | continue ;
+    | break ;
+    | ;
+    | { STMTS }
+EXP → (EXP) EXP'
+    | num EXP'
+    | id EXP'
+    | UNOP EXP EXP'
+EXP' → BINOP EXP EXP'
+    | ϵ
+ASOP → = | += | -= | *= | /= | %=
+BINOP → + | - | * | / | % | < | <= | > | >= | == | != | &&
+UNOP → ! | -

@@ -1,3 +1,9 @@
+// This is the grammar as given by the instructor of the class.
+// It contains some left-recursive rules, thus it is not handy
+// to use in the parser implementation. An equivalent grammar
+// with the left-recursive rules eliminated is provided in
+// "docs/grammar-without-left-recursive-rules.txt"
+
 PROGRAM → { DECLS STMTS }
 DECLS → DECLS DECL
     | ε
