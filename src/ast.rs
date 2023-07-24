@@ -77,6 +77,7 @@ impl Parser {
                 Rhs::Nonterminal(Parser::simp_rule),
                 Rhs::Terminal(Token::Semicolon)
             ],
+            vec![Rhs::Nonterminal(Parser::control_rule)],
             vec![Rhs::Terminal(Token::Semicolon)]
         ], false)
     }
@@ -93,6 +94,59 @@ impl Parser {
                 Rhs::Nonterminal(Parser::exp_rule)
             ]
         ], false)
+    }
+
+    fn control_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Terminal(Token::If),
+                Rhs::Terminal(Token::LeftParen),
+                Rhs::Nonterminal(Parser::exp_rule),
+                Rhs::Terminal(Token::RightParen),
+                Rhs::Nonterminal(Parser::block_rule),
+                Rhs::Nonterminal(Parser::else_block_rule),
+            ],
+            vec![
+                Rhs::Terminal(Token::While),
+                Rhs::Terminal(Token::LeftParen),
+                Rhs::Nonterminal(Parser::exp_rule),
+                Rhs::Terminal(Token::RightParen),
+                Rhs::Nonterminal(Parser::block_rule),
+            ],
+            vec![
+                Rhs::Terminal(Token::For),
+                Rhs::Terminal(Token::LeftParen),
+                Rhs::Nonterminal(Parser::simp_rule),
+                Rhs::Terminal(Token::Semicolon),
+                Rhs::Nonterminal(Parser::exp_rule),
+                Rhs::Terminal(Token::Semicolon),
+                Rhs::Nonterminal(Parser::simp_rule),
+                Rhs::Terminal(Token::RightParen),
+                Rhs::Nonterminal(Parser::block_rule),
+            ],
+            vec![Rhs::Terminal(Token::Continue), Rhs::Terminal(Token::Semicolon)],
+            vec![Rhs::Terminal(Token::Break), Rhs::Terminal(Token::Semicolon)],
+        ], false);        
+    }
+
+    fn block_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![Rhs::Nonterminal(Parser::stmt_rule)],
+            vec![
+                Rhs::Terminal(Token::LeftBrace),
+                Rhs::Nonterminal(Parser::stmts_rule),
+                Rhs::Terminal(Token::RightBrace)
+            ],
+        ], false);
+    }
+
+    fn else_block_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Terminal(Token::Else),
+                Rhs::Nonterminal(Parser::block_rule)
+            ]
+        ], true);
     }
 
     fn exp_rule(&mut self) -> RuleResult {
@@ -235,7 +289,7 @@ impl Parser {
                 }
             }
         }
-        
+
         return RuleResult{
             matched: true,
             tokens_consumed: count_tokens_matched
@@ -367,5 +421,44 @@ mod tests {
         let tokens = get_tokens_from_program(&program);
         let mut parser = Parser::new(tokens);
         assert_eq!(parser.analyze_grammar(), true);
-    }    
+    }
+
+    #[test]
+    fn test_control_simple() {
+        let program = String::from(
+            "{ \
+                var first, second, third : int; \
+                if (a) print 5; \
+                if (a == 5) print 5; else print a+4; \
+                if (a) { \
+                    first = 1 + 2; \
+                } \
+                if (alpha + 1) { \
+                    third = first + second / 2; \
+                } else { \
+                    third /= second * (first - second + ((42) + 1)); \
+                } \
+                while (first && third) { \
+                    second += 2; \
+                    break; \
+                } \
+                for (a=0; a < third; a+=1) { \
+                    third = first + second / 2; \
+                    continue; \
+                } \
+                for (a=0; a < third; a+=1) { \
+                    third = first + second / 2; \
+                    if (a == 1) { \
+                        print a; \
+                        continue; \
+                    } else { \
+                        break; \
+                    } \
+                } \
+            }",
+        );
+        let tokens = get_tokens_from_program(&program);
+        let mut parser = Parser::new(tokens);
+        assert_eq!(parser.analyze_grammar(), true);
+    }     
 }

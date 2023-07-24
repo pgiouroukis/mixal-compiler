@@ -12,6 +12,13 @@ fn main() {
             var first, second, third : int; \
             var alpha, beta, gamma : int; \
             first += (second + third / 2) && (alpha || beta); \
+            if (alpha + 4) { \
+                print a; \
+                first += (second + third / 2) && (alpha || beta); \
+            } else { \
+                print a+5; \
+                first += (second + third / 2) && (alpha || beta); \
+            }\
         }",
     );
 
