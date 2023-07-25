@@ -1,9 +1,9 @@
-mod ast;
+mod parser;
 mod lexer;
 mod utilities;
 
 use crate::utilities::get_tokens_from_program;
-use crate::ast::Parser;
+use crate::parser::Parser;
 
 fn main() {
 
