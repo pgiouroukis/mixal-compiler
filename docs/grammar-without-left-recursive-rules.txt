@@ -1,6 +1,5 @@
 // Equivalent grammar with "docs/grammar.txt" but
-// with the left-recursive rules eliminated. This is
-// the grammar used to model the parser in the code.
+// with the left-recursive rules eliminated.
 
 PROGRAM → { DECLS STMTS }
 DECLS → DECLS'

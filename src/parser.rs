@@ -152,33 +152,135 @@ impl Parser {
     fn exp_rule(&mut self) -> RuleResult {
         return self.run_rules_from_rhs(vec![
             vec![
-                Rhs::Terminal(Token::LeftParen),
-                Rhs::Nonterminal(Parser::exp_rule),
-                Rhs::Terminal(Token::RightParen),
-                Rhs::Nonterminal(Parser::exp_recursion_rule),
+                Rhs::Nonterminal(Parser::precedence_2_rule),
+                Rhs::Nonterminal(Parser::precedence_1_recursive_rule),
             ],
-            vec![
-                Rhs::Terminal(Token::Num(0)),
-                Rhs::Nonterminal(Parser::exp_recursion_rule),
-            ],
-            vec![
-                Rhs::Terminal(Token::Id(String::from("_"))), 
-                Rhs::Nonterminal(Parser::exp_recursion_rule),
-            ],
-            vec![
-                Rhs::Nonterminal(Parser::unop_rule),
-                Rhs::Nonterminal(Parser::exp_rule),
-                Rhs::Nonterminal(Parser::exp_recursion_rule),
-            ]
         ], false);
     }
 
-    fn exp_recursion_rule(&mut self) -> RuleResult {
+    fn precedence_2_rule(&mut self) -> RuleResult {
         return self.run_rules_from_rhs(vec![
             vec![
-                Rhs::Nonterminal(Parser::binop_rule),
+                Rhs::Nonterminal(Parser::precedence_3_rule),
+                Rhs::Nonterminal(Parser::precedence_2_recursive_rule),
+            ],
+        ], false);
+    }
+
+    fn precedence_3_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::precedence_4_rule),
+                Rhs::Nonterminal(Parser::precedence_3_recursive_rule),
+            ],
+        ], false);
+    }
+
+    fn precedence_4_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::precedence_5_rule),
+                Rhs::Nonterminal(Parser::precedence_4_recursive_rule),
+            ],
+        ], false);
+    }
+
+    fn precedence_5_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::precedence_6_rule),
+                Rhs::Nonterminal(Parser::precedence_5_recursive_rule),
+            ],
+        ], false);
+    }
+
+    fn precedence_6_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::unary_rule),
+                Rhs::Nonterminal(Parser::precedence_6_recursive_rule),
+            ],
+        ], false);
+    }
+
+    fn unary_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::unop_rule),
+                Rhs::Nonterminal(Parser::base_rule),
+            ],
+            vec![Rhs::Nonterminal(Parser::base_rule)]
+        ], false);
+    }
+
+    fn base_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![Rhs::Terminal(Token::Id(String::from("_")))],
+            vec![Rhs::Terminal(Token::Num(0))],
+            vec![
+                Rhs::Terminal(Token::LeftParen),
                 Rhs::Nonterminal(Parser::exp_rule),
-                Rhs::Nonterminal(Parser::exp_recursion_rule),
+                Rhs::Terminal(Token::RightParen),
+            ]
+        ], false);
+    }    
+
+    fn precedence_1_recursive_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::binop_precedence_1_rule),
+                Rhs::Nonterminal(Parser::precedence_2_rule),
+                Rhs::Nonterminal(Parser::precedence_1_recursive_rule),
+            ],
+        ], true);
+    }
+
+    fn precedence_2_recursive_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::binop_precedence_2_rule),
+                Rhs::Nonterminal(Parser::precedence_3_rule),
+                Rhs::Nonterminal(Parser::precedence_2_recursive_rule),
+            ],
+        ], true);
+    }
+
+    fn precedence_3_recursive_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::binop_precedence_3_rule),
+                Rhs::Nonterminal(Parser::precedence_4_rule),
+                Rhs::Nonterminal(Parser::precedence_3_recursive_rule),
+            ],
+        ], true);
+    }
+
+    fn precedence_4_recursive_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::binop_precedence_4_rule),
+                Rhs::Nonterminal(Parser::precedence_5_rule),
+                Rhs::Nonterminal(Parser::precedence_4_recursive_rule),
+            ],
+        ], true);
+    }
+
+    fn precedence_5_recursive_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::binop_precedence_5_rule),
+                Rhs::Nonterminal(Parser::precedence_6_rule),
+                Rhs::Nonterminal(Parser::precedence_5_recursive_rule),
+            ],
+        ], true);
+    }
+
+    fn precedence_6_recursive_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![
+                Rhs::Nonterminal(Parser::binop_precedence_6_rule),
+                Rhs::Nonterminal(Parser::base_rule),
+                Rhs::Nonterminal(Parser::precedence_6_recursive_rule),
             ],
         ], true);
     }
@@ -194,21 +296,46 @@ impl Parser {
         ], false)
     }
 
-    fn binop_rule(&mut self) -> RuleResult {
+    fn binop_precedence_1_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![Rhs::Terminal(Token::Or)],
+        ], false)
+    }
+
+    fn binop_precedence_2_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![Rhs::Terminal(Token::And)],
+        ], false)
+    }
+
+    fn binop_precedence_3_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![Rhs::Terminal(Token::Equals)],
+            vec![Rhs::Terminal(Token::NotEquals)],
+        ], false)
+    }
+
+    fn binop_precedence_4_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
+            vec![Rhs::Terminal(Token::GreaterThan)],
+            vec![Rhs::Terminal(Token::GreaterThanOrEquals)],
+            vec![Rhs::Terminal(Token::LessThan)],
+            vec![Rhs::Terminal(Token::LessThanOrEquals)],
+        ], false)
+    }
+
+    fn binop_precedence_5_rule(&mut self) -> RuleResult {
         return self.run_rules_from_rhs(vec![
             vec![Rhs::Terminal(Token::Plus)],
             vec![Rhs::Terminal(Token::Minus)],
+        ], false)
+    }
+
+    fn binop_precedence_6_rule(&mut self) -> RuleResult {
+        return self.run_rules_from_rhs(vec![
             vec![Rhs::Terminal(Token::Asterisk)],
             vec![Rhs::Terminal(Token::Slash)],
             vec![Rhs::Terminal(Token::Percent)],
-            vec![Rhs::Terminal(Token::LessThan)],
-            vec![Rhs::Terminal(Token::LessThanOrEquals)],
-            vec![Rhs::Terminal(Token::GreaterThan)],
-            vec![Rhs::Terminal(Token::GreaterThanOrEquals)],
-            vec![Rhs::Terminal(Token::Equals)],
-            vec![Rhs::Terminal(Token::NotEquals)],
-            vec![Rhs::Terminal(Token::And)],
-            vec![Rhs::Terminal(Token::Or)],
         ], false)
     }
 
@@ -416,6 +543,7 @@ mod tests {
                 first = -5; \
                 print third; \
                 first = (second || third) && second; \
+                third = (second >= third) && second || third == 3; \
             }",
         );
         let tokens = get_tokens_from_program(&program);
@@ -461,4 +589,17 @@ mod tests {
         let mut parser = Parser::new(tokens);
         assert_eq!(parser.analyze_grammar(), true);
     }     
+
+    #[test]
+    fn test_unary_simple() {
+        let program = String::from(
+            "{ \
+                a = -(1+3); \
+                b = !1; \
+            }",
+        );
+        let tokens = get_tokens_from_program(&program);
+        let mut parser = Parser::new(tokens);
+        assert_eq!(parser.analyze_grammar(), true);
+    }
 }

@@ -1,0 +1,66 @@
+// Equivalent grammar with "docs/grammar.txt", with 2 features:
+//  1. the left-recursive rules are eliminated
+//  2. the operator precedence is defined in the grammar itself
+// This is the grammar used to model the parser in the code.
+// Defining the grammar like this will allow us to conveniently
+// create the AST while parsing the program. 
+
+PROGRAM → { DECLS STMTS }
+
+DECLS → DECLS'
+DECLS' → DECL DECLS'
+    | ϵ
+DECL → var id VARS: TYPE ;
+VARS → , id VARS
+    | ϵ
+TYPE → int
+
+STMTS → STMTS'
+STMTS' → STMT STMTS'
+    | ϵ
+STMT → SIMP ;
+    | CONTROL
+    | ;
+SIMP → id ASOP EXP
+    | print EXP
+CONTROL → if ( EXP ) BLOCK ELSE-BLC
+    | while ( EXP ) BLOCK
+    | for ( SIMP ; EXP ; SIMP ) BLOCK
+    | continue ;
+    | break ;
+ELSE-BLC → else BLOCK
+    | ϵ
+BLOCK → id ASOP EXP ;
+    | print EXP ;
+    | if ( EXP ) BLOCK ELSE-BLC
+    | while ( EXP ) BLOCK
+    | for ( SIMP ; EXP ; SIMP ) BLOCK
+    | continue ;
+    | break ;
+    | ;
+    | { STMTS }
+ASOP → = | += | -= | *= | /= | %=
+
+EXP → PRECEDENCE_2 PRECEDENCE_1_RECURSIVE
+PRECEDENCE_2 → PRECEDENCE_3 PRECEDENCE_2_RECURSIVE
+PRECEDENCE_3 → PRECEDENCE_4 PRECEDENCE_3_RECURSIVE
+PRECEDENCE_4 → PRECEDENCE_5 PRECEDENCE_4_RECURSIVE
+PRECEDENCE_5 → PRECEDENCE_6 PRECEDENCE_5_RECURSIVE
+PRECEDENCE_6 → UNARY PRECEDENCE_6_RECURSIVE
+UNARY → UNOP BASE | BASE
+BASE → num | id | ( EXP )
+
+PRECEDENCE_1_RECURSIVE → BINOP_PRECEDENCE_1 PRECEDENCE_2 PRECEDENCE_1_RECURSIVE | ϵ
+PRECEDENCE_2_RECURSIVE → BINOP_PRECEDENCE_2 PRECEDENCE_3 PRECEDENCE_2_RECURSIVE | ϵ
+PRECEDENCE_3_RECURSIVE → BINOP_PRECEDENCE_3 PRECEDENCE_4 PRECEDENCE_3_RECURSIVE | ϵ
+PRECEDENCE_4_RECURSIVE → BINOP_PRECEDENCE_4 PRECEDENCE_5 PRECEDENCE_4_RECURSIVE | ϵ
+PRECEDENCE_5_RECURSIVE → BINOP_PRECEDENCE_5 PRECEDENCE_6 PRECEDENCE_5_RECURSIVE | ϵ
+PRECEDENCE_6_RECURSIVE → BINOP_PRECEDENCE_6 BASE PRECEDENCE_6_RECURSIVE | ϵ
+
+BINOP_PRECEDENCE_1 → || 
+BINOP_PRECEDENCE_2 → &&
+BINOP_PRECEDENCE_3 → == | !=
+BINOP_PRECEDENCE_4 → < | <= | > | >=
+BINOP_PRECEDENCE_5 → + | -
+BINOP_PRECEDENCE_6 → * | / | % | 
+UNOP → ! | -
