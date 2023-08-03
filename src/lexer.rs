@@ -1,7 +1,7 @@
 use logos::{Lexer, Logos};
 
 // Definition of the language's tokens.
-#[derive(Logos, Debug, PartialEq)]
+#[derive(Logos, Debug, PartialEq, Clone)]
 #[logos(skip r"[ \t\n]+")] // Ignore this regex pattern between tokens
 pub enum Token {
     #[token("print")]
