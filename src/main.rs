@@ -8,17 +8,8 @@ use crate::parser::Parser;
 fn main() {
 
     let program: String = String::from(
-        "{  
-            var first, second, third : int; \
-            var alpha, beta, gamma : int; \
-            first += (second + third / 2) && (alpha || beta); \
-            if (alpha + 4) { \
-                print a; \
-                first += (second + third / 2) && (alpha || beta); \
-            } else { \
-                print a+5; \
-                first += (second + third / 2) && (alpha || beta); \
-            }\
+        "{ \
+            a = 1 * 2 + 3 + 4 * 5 || alpha; \
         }",
     );
 
@@ -26,8 +17,8 @@ fn main() {
     let mut parser = Parser::new(tokens);
     
     if parser.analyze_grammar() {
-        println!("Parsing successful")
+        println!("Parsing successful");
     } else {
-        println!("Parsing failed")
+        println!("Parsing failed");
     }
 }

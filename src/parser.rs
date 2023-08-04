@@ -1,5 +1,7 @@
 use std::mem;
-use crate::lexer::Token;
+use std::collections::HashMap;
+use orange_trees::Node;
+use crate::{lexer::Token, utilities::new_node_from_token};
 
 // Implementation of the language's parser.
 // You can check the grammar of the language
@@ -8,11 +10,19 @@ use crate::lexer::Token;
 pub struct Parser {
     pub pos: usize,
     pub tokens: Vec<Token>,
+
+    // key: token_start_index
+    // value: (token_end_index, Node)
+    token_index_to_expression_node: HashMap<usize, (usize, Node<usize, Token>)>
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Parser {
-        Parser { pos: 0, tokens }
+        Parser { 
+            pos: 0, 
+            tokens, 
+            token_index_to_expression_node: HashMap::new()
+        }
     }
 
     pub fn analyze_grammar(&mut self) -> bool {
@@ -150,57 +160,117 @@ impl Parser {
     }
 
     fn exp_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Nonterminal(Parser::precedence_2_rule),
                 Rhs::Nonterminal(Parser::precedence_1_recursive_rule),
             ],
         ], false);
+
+        if rule_result.matched && rule_result.tokens_consumed > 1 {
+            println!("precedence_1_rule (exp) starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
+            self.construct_expression_node_from_token_range(
+                self.pos-rule_result.tokens_consumed,
+                self.pos
+            );
+        }
+
+        return rule_result
     }
 
     fn precedence_2_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Nonterminal(Parser::precedence_3_rule),
                 Rhs::Nonterminal(Parser::precedence_2_recursive_rule),
             ],
         ], false);
+
+        if rule_result.matched && rule_result.tokens_consumed > 1 {
+            println!("precedence_2_rule starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
+            self.construct_expression_node_from_token_range(
+                self.pos-rule_result.tokens_consumed,
+                self.pos
+            );
+        }
+
+        return rule_result;
     }
 
     fn precedence_3_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Nonterminal(Parser::precedence_4_rule),
                 Rhs::Nonterminal(Parser::precedence_3_recursive_rule),
             ],
         ], false);
+
+        if rule_result.matched && rule_result.tokens_consumed > 1 {
+            println!("precedence_3_rule starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
+            self.construct_expression_node_from_token_range(
+                self.pos-rule_result.tokens_consumed,
+                self.pos
+            );
+        }
+
+        return rule_result;
     }
 
     fn precedence_4_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Nonterminal(Parser::precedence_5_rule),
                 Rhs::Nonterminal(Parser::precedence_4_recursive_rule),
             ],
         ], false);
+
+        if rule_result.matched && rule_result.tokens_consumed > 1 {
+            println!("precedence_4_rule starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
+            self.construct_expression_node_from_token_range(
+                self.pos-rule_result.tokens_consumed,
+                self.pos
+            );
+        }
+
+        return rule_result;   
     }
 
     fn precedence_5_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Nonterminal(Parser::precedence_6_rule),
                 Rhs::Nonterminal(Parser::precedence_5_recursive_rule),
             ],
         ], false);
+
+        if rule_result.matched && rule_result.tokens_consumed > 1 {
+            println!("precedence_5_rule starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
+            self.construct_expression_node_from_token_range(
+                self.pos-rule_result.tokens_consumed,
+                self.pos
+            );
+        }
+
+        return rule_result;
     }
 
     fn precedence_6_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Nonterminal(Parser::unary_rule),
                 Rhs::Nonterminal(Parser::precedence_6_recursive_rule),
             ],
         ], false);
+
+        if rule_result.matched && rule_result.tokens_consumed > 1 {
+            println!("precedence_6_rule starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
+            self.construct_expression_node_from_token_range(
+                self.pos-rule_result.tokens_consumed,
+                self.pos
+            );
+        }
+
+        return rule_result;
     }
 
     fn unary_rule(&mut self) -> RuleResult {
@@ -343,7 +413,7 @@ impl Parser {
         return self.run_rules_from_rhs(vec![
             vec![Rhs::Terminal(Token::ExclamationMark)],
             vec![Rhs::Terminal(Token::Minus)],
-        ], false)        
+        ], false)
     }
 
     fn current_token_matches(&mut self, token: &Token) -> bool {
@@ -351,7 +421,6 @@ impl Parser {
         // both the enum variant AND the data contained in the variant (if applicable)
         // We don't want this behaviour here, since we only care about the enum variant equality
         if mem::discriminant(&self.tokens[self.pos]) == mem::discriminant(token) {
-            println!("consumed: {:?}", self.tokens[self.pos]);
             return true;
         }
         return false;
@@ -423,6 +492,120 @@ impl Parser {
          };
     }
 
+    // This method is used to construct the AST nodes for expressions.
+    // It takes a token range (start and end indices) that contains
+    // an expression and it creates an AST node that models this expression.
+    // This node is then inserted in the `token_index_to_expression_node` map.
+
+    // It works in the following way: 
+    // There are 2 stacks, one storing operators and one storing operands.
+    // An operand is not necessarily a number. It can also be another 
+    // expression (in the form of a Node). The code starts by iterating over
+    // the given token range. 
+    //  * If the current token is a parenthesis (either opening or closing),
+    //    that token is skipped. 
+    //  * If the token is an operand (i.e. num or variable), we check if there
+    //    is an entry in the `token_index_to_expression_node` map. 
+    //      * If we find an entry, it means that a previous invocation of
+    //        this method parsed a subexpression starting from that token,
+    //        so we skip the tokens starting from the current one all the way
+    //        to the `token_end_index` stored in the map. We push the node 
+    //        stored in the map to the operand stack.
+    //      * If we don't find an entry, we simply push the operand to the
+    //        the operand stack.
+    //  * If the token is an operator, we simply push it to the operator stack.
+    // After filling the stacks, we construct the tree in the following way:
+    //  1. We pop two operands and one operator from the appropriate stacks and we
+    //     create a Node with these three (the parent is the operator, the children are 
+    //     the operands).
+    //  2. While the operator stack is not empty, we pop one operand and one operator
+    //     and, using the node previously created, we create a new node (the parent is 
+    //     the operator and the children are the operand and the previous node).
+    // After building the AST node, we add it to the `token_index_to_expression_node` map.
+    //  
+    // NOTE: This method itself is 'dumb', meaning it does not understand operator precedence.
+    // All the magic happens when this method is invoked in the grammar's production rules for
+    // expressions (fn precedence_x_rule). In a bottom-up apporach, the nodes of the expressions
+    // are added to the `token_index_to_expression_node` map based on the precedence of the operators,
+    // and then the rule for the lower precedence level will understand that some subexpressions
+    // were parsed, and it will ignore them.
+    fn construct_expression_node_from_token_range(&mut self, token_range_start: usize, token_range_end: usize) {
+        let mut operator_stack = vec![];
+        let mut operand_stack = vec![];
+        let mut token_index = token_range_start;
+        while token_index < token_range_end {
+            let token = (*self.tokens.get(token_index).clone().expect("has value")).clone();
+            match token {
+                Token::LeftParen | Token::RightParen => {
+                    token_index += 1;
+                    continue;
+                },
+                Token::Num(_) | Token::Id(_) => {
+                    if self.token_index_to_expression_node.contains_key(&token_index) {
+                        let end_index = self.token_index_to_expression_node.get(&token_index).expect("defined").0;
+                        operand_stack.push(
+                            (
+                                token_index, 
+                                StackItem::Node(self.token_index_to_expression_node.get(&token_index).expect("defined").1.clone())
+                            )
+                        );
+                        token_index += end_index - token_index;
+                        continue;
+                    } else {
+                        operand_stack.push((token_index, StackItem::Token(token)));
+                    }
+                }
+                _ => {
+                    operator_stack.push((token_index, token));
+                }
+            }
+            token_index += 1;
+        }
+        let mut right_node;
+        let first_operand = operand_stack.pop().expect("has value");
+        match first_operand.1 {
+            StackItem::Token(val) => {
+                right_node = new_node_from_token(first_operand.0, val.clone());
+            },
+            StackItem::Node(val) => {
+                right_node = val;
+            }
+        }
+        let mut node = new_node_from_token(0, Token::ExclamationMark);
+        if operator_stack.is_empty() {
+            node = right_node
+        } else {
+            while !operator_stack.is_empty() {
+                let operator_node = operator_stack.pop().expect("has value");
+                node = new_node_from_token(operator_node.0, operator_node.1);
+                let operand_node = operand_stack.pop().expect("has value");
+                match operand_node.1 {
+                    StackItem::Token(val) => {
+                        node.add_child(new_node_from_token(operand_node.0, val.clone()));
+                    },
+                    StackItem::Node(val) => {
+                        node.add_child(val);
+                    }
+                }
+                node.add_child(right_node.clone());
+                right_node = node.clone();
+            }
+        }
+    
+        if !self.token_index_to_expression_node.contains_key(&token_range_start) {
+            self.token_index_to_expression_node.insert(
+                token_range_start, 
+                (token_range_end, node.clone())
+            
+            );
+        } else {
+            self.token_index_to_expression_node.get_mut(&token_range_start).expect("not null").0 = token_range_end;
+            self.token_index_to_expression_node.get_mut(&token_range_start).expect("not null").1 = node.clone();
+        }
+        println!("TREEEE: {:?}", node);
+        println!("HASHMAP: {:?}", self.token_index_to_expression_node);
+    }
+
 }
 
 // This struct models the result of an attempt to match a rule.
@@ -434,6 +617,12 @@ pub struct RuleResult {
 pub enum Rhs {
     Terminal(Token),
     Nonterminal(fn(&mut Parser) -> RuleResult)
+}
+
+#[derive(Clone)]
+pub enum StackItem {
+    Token(Token),
+    Node(Node<usize, Token>)
 }
 
 // ------------------------------------------------------
