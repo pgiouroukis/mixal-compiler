@@ -88,7 +88,7 @@ pub enum Token {
 
     #[regex("[a-zA-Z]([a-zA-Z]|[0-9]|_)*", to_string)]
     Id(String),
-    #[regex("(-?[1-9][0-9]*)|0", to_num)]
+    #[regex("([1-9][0-9]*)|0", to_num)]
     Num(i64),
 }
 

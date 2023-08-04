@@ -9,7 +9,7 @@ fn main() {
 
     let program: String = String::from(
         "{ \
-            a = 1 * 2 + 3 + 4 * 5 || alpha; \
+            a = -1 + (-5); \
         }",
     );
 

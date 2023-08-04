@@ -274,13 +274,86 @@ impl Parser {
     }
 
     fn unary_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Nonterminal(Parser::unop_rule),
                 Rhs::Nonterminal(Parser::base_rule),
             ],
             vec![Rhs::Nonterminal(Parser::base_rule)]
         ], false);
+
+        if rule_result.matched && rule_result.tokens_consumed == 2 {
+            // For cases like -3, -alpha, !a, !3
+            println!("unary starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
+            let index = self.pos-rule_result.tokens_consumed;
+            let unary_token = (*self.tokens.get(index).clone().expect("has value")).clone();
+            let value_token = (*self.tokens.get(index+1).clone().expect("has value")).clone();
+            let mut node = new_node_from_token(0, Token::Break);
+            match unary_token {
+                Token::Minus => {
+                    node = new_node_from_token(index, Token::Asterisk);      
+                    node.add_child(new_node_from_token(index+10001, Token::Num(-1)));
+                    node.add_child(new_node_from_token(index+10002, value_token.clone()));
+                }, 
+                Token::ExclamationMark => {
+                    node = new_node_from_token(index, Token::ExclamationMark);
+                    node.add_child(new_node_from_token(index+10001, value_token.clone()));
+                }, 
+                _ => {}
+            }
+            self.token_index_to_expression_node.insert(
+                index,
+                (self.pos, node.clone())
+            );                    
+            println!("TREEEE: {:?}", node);
+            println!("HASHMAP: {:?}", self.token_index_to_expression_node);            
+        } else if rule_result.matched && rule_result.tokens_consumed > 2 {
+            // For cases like -(1+3), !(alpha+2).
+            // Notice that the expression inside the parentheses
+            // will have already been parsed and stored in the map.
+            println!("unary starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);           
+            let token_range_start = self.pos-rule_result.tokens_consumed;
+            let token_range_end = self.pos;
+            let token = (*self.tokens.get(token_range_start).clone().expect("has value")).clone();
+            // ensure that the expression starts with a unary operator.
+            match token {
+                Token::Minus => {},
+                Token::ExclamationMark => {},
+                _ => {
+                    return rule_result;
+                }
+            }            
+            for token_index in token_range_start..token_range_end {
+                // This will skip parentheses
+                if !self.token_index_to_expression_node.contains_key(&token_index) {
+                    continue;
+                }
+                // We have located the beginning of the expression inside the parentheses
+                let right_hand_side = self.token_index_to_expression_node.get(&token_index).expect("has_value").clone();
+                let mut node = new_node_from_token(0, Token::Break);
+                match token {
+                    Token::Minus => {
+                        node = new_node_from_token(token_index, Token::Asterisk);      
+                        node.add_child(new_node_from_token(token_index+10001, Token::Num(-1)));
+                        node.add_child(right_hand_side.1.clone());
+                    },
+                    Token::ExclamationMark => {
+                        node = new_node_from_token(self.pos-rule_result.tokens_consumed, Token::ExclamationMark);
+                        node.add_child(right_hand_side.1.clone());
+                    },
+                    _ => {}
+                }
+                self.token_index_to_expression_node.insert(
+                    token_range_start,
+                    (self.pos, node.clone())
+                );                    
+                println!("TREEEE: {:?}", node);
+                println!("HASHMAP: {:?}", self.token_index_to_expression_node);
+                break;
+            }
+        }
+
+        return rule_result;   
     }
 
     fn base_rule(&mut self) -> RuleResult {
@@ -502,18 +575,16 @@ impl Parser {
     // An operand is not necessarily a number. It can also be another 
     // expression (in the form of a Node). The code starts by iterating over
     // the given token range. 
+    //  * We check if there is an entry in the `token_index_to_expression_node`
+    //    map starting from the current token. If we find an entry, it means
+    //    that a previous invocation of this method parsed a subexpression
+    //    starting from that token, so we skip the tokens starting from
+    //    the current one all the way to the `token_end_index` stored in
+    //    the map. We push the node stored in the map to the operand stack.
     //  * If the current token is a parenthesis (either opening or closing),
     //    that token is skipped. 
-    //  * If the token is an operand (i.e. num or variable), we check if there
-    //    is an entry in the `token_index_to_expression_node` map. 
-    //      * If we find an entry, it means that a previous invocation of
-    //        this method parsed a subexpression starting from that token,
-    //        so we skip the tokens starting from the current one all the way
-    //        to the `token_end_index` stored in the map. We push the node 
-    //        stored in the map to the operand stack.
-    //      * If we don't find an entry, we simply push the operand to the
-    //        the operand stack.
-    //  * If the token is an operator, we simply push it to the operator stack.
+    //  * If the token is an operand (num or variable), we push it to the operand stack. 
+    //  * If the token is an operator, we push it to the operator stack.
     // After filling the stacks, we construct the tree in the following way:
     //  1. We pop two operands and one operator from the appropriate stacks and we
     //     create a Node with these three (the parent is the operator, the children are 
@@ -535,25 +606,24 @@ impl Parser {
         let mut token_index = token_range_start;
         while token_index < token_range_end {
             let token = (*self.tokens.get(token_index).clone().expect("has value")).clone();
+            if self.token_index_to_expression_node.contains_key(&token_index) {
+                let end_index = self.token_index_to_expression_node.get(&token_index).expect("defined").0;
+                operand_stack.push(
+                    (
+                        token_index, 
+                        StackItem::Node(self.token_index_to_expression_node.get(&token_index).expect("defined").1.clone())
+                    )
+                );
+                token_index += end_index - token_index;
+                continue;
+            }            
             match token {
                 Token::LeftParen | Token::RightParen => {
                     token_index += 1;
                     continue;
                 },
                 Token::Num(_) | Token::Id(_) => {
-                    if self.token_index_to_expression_node.contains_key(&token_index) {
-                        let end_index = self.token_index_to_expression_node.get(&token_index).expect("defined").0;
-                        operand_stack.push(
-                            (
-                                token_index, 
-                                StackItem::Node(self.token_index_to_expression_node.get(&token_index).expect("defined").1.clone())
-                            )
-                        );
-                        token_index += end_index - token_index;
-                        continue;
-                    } else {
-                        operand_stack.push((token_index, StackItem::Token(token)));
-                    }
+                    operand_stack.push((token_index, StackItem::Token(token)));
                 }
                 _ => {
                     operator_stack.push((token_index, token));
@@ -619,7 +689,7 @@ pub enum Rhs {
     Nonterminal(fn(&mut Parser) -> RuleResult)
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum StackItem {
     Token(Token),
     Node(Node<usize, Token>)
