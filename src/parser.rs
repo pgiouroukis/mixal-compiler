@@ -13,7 +13,7 @@ pub struct Parser {
 
     // key: token_start_index
     // value: (token_end_index, Node)
-    token_index_to_expression_node: HashMap<usize, (usize, Node<usize, Token>)>
+    token_index_to_node: HashMap<usize, (usize, Node<usize, Token>)>
 }
 
 impl Parser {
@@ -21,7 +21,7 @@ impl Parser {
         Parser { 
             pos: 0, 
             tokens, 
-            token_index_to_expression_node: HashMap::new()
+            token_index_to_node: HashMap::new()
         }
     }
 
@@ -301,12 +301,12 @@ impl Parser {
                 }, 
                 _ => {}
             }
-            self.token_index_to_expression_node.insert(
+            self.token_index_to_node.insert(
                 index,
                 (self.pos, node.clone())
             );                    
             println!("TREEEE: {:?}", node);
-            println!("HASHMAP: {:?}", self.token_index_to_expression_node);            
+            println!("HASHMAP: {:?}", self.token_index_to_node);            
         } else if rule_result.matched && rule_result.tokens_consumed > 2 {
             // For cases like -(1+3), !(alpha+2).
             // Notice that the expression inside the parentheses
@@ -325,11 +325,11 @@ impl Parser {
             }            
             for token_index in token_range_start..token_range_end {
                 // This will skip parentheses
-                if !self.token_index_to_expression_node.contains_key(&token_index) {
+                if !self.token_index_to_node.contains_key(&token_index) {
                     continue;
                 }
                 // We have located the beginning of the expression inside the parentheses
-                let right_hand_side = self.token_index_to_expression_node.get(&token_index).expect("has_value").clone();
+                let right_hand_side = self.token_index_to_node.get(&token_index).expect("has_value").clone();
                 let mut node = new_node_from_token(0, Token::Break);
                 match token {
                     Token::Minus => {
@@ -343,12 +343,12 @@ impl Parser {
                     },
                     _ => {}
                 }
-                self.token_index_to_expression_node.insert(
+                self.token_index_to_node.insert(
                     token_range_start,
                     (self.pos, node.clone())
                 );                    
                 println!("TREEEE: {:?}", node);
-                println!("HASHMAP: {:?}", self.token_index_to_expression_node);
+                println!("HASHMAP: {:?}", self.token_index_to_node);
                 break;
             }
         }
@@ -606,12 +606,12 @@ impl Parser {
         let mut token_index = token_range_start;
         while token_index < token_range_end {
             let token = (*self.tokens.get(token_index).clone().expect("has value")).clone();
-            if self.token_index_to_expression_node.contains_key(&token_index) {
-                let end_index = self.token_index_to_expression_node.get(&token_index).expect("defined").0;
+            if self.token_index_to_node.contains_key(&token_index) {
+                let end_index = self.token_index_to_node.get(&token_index).expect("defined").0;
                 operand_stack.push(
                     (
                         token_index, 
-                        StackItem::Node(self.token_index_to_expression_node.get(&token_index).expect("defined").1.clone())
+                        StackItem::Node(self.token_index_to_node.get(&token_index).expect("defined").1.clone())
                     )
                 );
                 token_index += end_index - token_index;
@@ -662,18 +662,18 @@ impl Parser {
             }
         }
     
-        if !self.token_index_to_expression_node.contains_key(&token_range_start) {
-            self.token_index_to_expression_node.insert(
+        if !self.token_index_to_node.contains_key(&token_range_start) {
+            self.token_index_to_node.insert(
                 token_range_start, 
                 (token_range_end, node.clone())
             
             );
         } else {
-            self.token_index_to_expression_node.get_mut(&token_range_start).expect("not null").0 = token_range_end;
-            self.token_index_to_expression_node.get_mut(&token_range_start).expect("not null").1 = node.clone();
+            self.token_index_to_node.get_mut(&token_range_start).expect("not null").0 = token_range_end;
+            self.token_index_to_node.get_mut(&token_range_start).expect("not null").1 = node.clone();
         }
         println!("TREEEE: {:?}", node);
-        println!("HASHMAP: {:?}", self.token_index_to_expression_node);
+        println!("HASHMAP: {:?}", self.token_index_to_node);
     }
 
 }
