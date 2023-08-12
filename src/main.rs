@@ -9,7 +9,12 @@ fn main() {
 
     let program: String = String::from(
         "{ \
-            a = -1 + (-5); \
+            var i: int; \
+            for (i = 1; i < 10; i+=1) { \
+                for (kk = 50; kk != 10; kk-=5) \
+                    if (a == 4) print 4; \
+                break; \
+            } \
         }",
     );
 
@@ -18,6 +23,7 @@ fn main() {
     
     if parser.analyze_grammar() {
         println!("Parsing successful");
+        println!("AST: {:?}", parser.ast)
     } else {
         println!("Parsing failed");
     }

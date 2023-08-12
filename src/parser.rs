@@ -10,6 +10,7 @@ use crate::{lexer::Token, utilities::new_node_from_token};
 pub struct Parser {
     pub pos: usize,
     pub tokens: Vec<Token>,
+    pub ast: Node<usize, Token>,
 
     // key: token_start_index
     // value: (token_end_index, Node)
@@ -20,7 +21,8 @@ impl Parser {
     pub fn new(tokens: Vec<Token>) -> Parser {
         Parser { 
             pos: 0, 
-            tokens, 
+            tokens,
+            ast: new_node_from_token(0, Token::Break),
             token_index_to_node: HashMap::new()
         }
     }
@@ -30,7 +32,7 @@ impl Parser {
     }
 
     fn program_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Terminal(Token::LeftBrace),
                 Rhs::Nonterminal(Parser::decls_rule),
@@ -38,6 +40,21 @@ impl Parser {
                 Rhs::Terminal(Token::RightBrace)
             ]
         ], false);
+
+        if rule_result.matched {
+            let token_range_start = self.pos - rule_result.tokens_consumed;
+            let token_range_end = self.pos;
+            let mut index = token_range_start + 1;
+            let mut node= new_node_from_token(token_range_start, Token::Id(String::from("PROGRAM")));
+            while  index < token_range_end - 1 {
+                let child = self.token_index_to_node.get(&index).expect("has value").clone();                
+                node.add_child(child.1.clone());
+                index = child.0;
+            }
+            self.ast.add_child(node.clone());
+        }
+        
+        return rule_result;
     }
 
     fn decls_rule(&mut self) -> RuleResult {
@@ -50,7 +67,7 @@ impl Parser {
     }
 
     fn decl_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Terminal(Token::Var),
                 Rhs::Terminal(Token::Id(String::from("_"))),
@@ -60,6 +77,25 @@ impl Parser {
                 Rhs::Terminal(Token::Semicolon)
             ]
         ], false);
+
+        if rule_result.matched {
+            let mut node: Node<usize, Token>;
+            let token_range_start = self.pos - rule_result.tokens_consumed;
+            let token_range_end = self.pos;
+            node = new_node_from_token(token_range_start, Token::Int);
+            for i in token_range_start + 1 .. token_range_end {
+                let token = (*self.tokens.get(i).clone().expect("has value")).clone();
+                if let Token::Id(_) = token {
+                    node.add_child(new_node_from_token(i, token.clone()));
+                }
+            }
+            self.token_index_to_node.insert(
+                token_range_start,
+                (self.pos, node.clone())
+            );
+        }
+
+        return rule_result;
     }
 
     fn vars_rule(&mut self) -> RuleResult {
@@ -82,18 +118,29 @@ impl Parser {
     }
 
     fn stmt_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Nonterminal(Parser::simp_rule),
                 Rhs::Terminal(Token::Semicolon)
             ],
             vec![Rhs::Nonterminal(Parser::control_rule)],
             vec![Rhs::Terminal(Token::Semicolon)]
-        ], false)
+        ], false);
+
+        if rule_result.matched  && rule_result.tokens_consumed > 1 {
+            let index = self.pos - rule_result.tokens_consumed;
+            let node = self.token_index_to_node.get(&index).expect("has value").clone();
+            self.token_index_to_node.insert(
+                index,
+                (self.pos, node.1.clone())
+            );
+        }
+
+        return rule_result;
     }
 
     fn simp_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Terminal(Token::Id(String::from("_"))),
                 Rhs::Nonterminal(Parser::asop_rule),
@@ -103,11 +150,38 @@ impl Parser {
                 Rhs::Terminal(Token::Print),
                 Rhs::Nonterminal(Parser::exp_rule)
             ]
-        ], false)
+        ], false);
+
+        if rule_result.matched {
+            let index = self.pos - rule_result.tokens_consumed;
+            let first_token = (*self.tokens.get(index).clone().expect("has value")).clone();
+            let mut node = new_node_from_token(0, Token::Break);
+            match first_token {
+                Token::Id(_) => {
+                    let assignment_operator = (*self.tokens.get(index+1).clone().expect("has value")).clone();                    
+                    node = new_node_from_token(index+1, assignment_operator.clone());
+                    node.add_child(new_node_from_token(index, first_token));
+                    let expression_node = self.token_index_to_node.get(&(index+2)).expect("has value").clone();
+                    node.add_child(expression_node.1);
+                },
+                Token::Print => {
+                    node = new_node_from_token(index, Token::Print);
+                    let expression_node = self.token_index_to_node.get(&(index+1)).expect("has value").clone();
+                    node.add_child(expression_node.1);
+                },
+                _ => {}
+            }
+            self.token_index_to_node.insert(
+                index,
+                (self.pos, node.clone())
+            );            
+        }
+
+        return rule_result;
     }
 
     fn control_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Terminal(Token::If),
                 Rhs::Terminal(Token::LeftParen),
@@ -136,11 +210,62 @@ impl Parser {
             ],
             vec![Rhs::Terminal(Token::Continue), Rhs::Terminal(Token::Semicolon)],
             vec![Rhs::Terminal(Token::Break), Rhs::Terminal(Token::Semicolon)],
-        ], false);        
+        ], false);
+
+
+        if rule_result.matched {
+            let index = self.pos - rule_result.tokens_consumed;
+            let token = (*self.tokens.get(index).clone().expect("has value")).clone();
+            let mut node = new_node_from_token(0, Token::Break);
+            match token {
+                Token::If => {
+                    node = new_node_from_token(index, Token::If);
+                    let expression_node = self.token_index_to_node.get(&(index+2)).expect("has value").clone();
+                    node.add_child(expression_node.1);
+                    let block_node = self.token_index_to_node.get(&(expression_node.0 + 1)).expect("has value").clone();
+                    node.add_child(block_node.1.clone());
+                    if block_node.0 < self.pos {
+                        let else_block = self.token_index_to_node.get(&block_node.0).expect("has value").clone();
+                        node.add_child(else_block.1.clone());
+                    }
+                },
+                Token::While => {
+                    node = new_node_from_token(index, Token::While);
+                    let expression_node = self.token_index_to_node.get(&(index+2)).expect("has value").clone();
+                    node.add_child(expression_node.1);
+                    let block_node = self.token_index_to_node.get(&(expression_node.0 + 1)).expect("has value").clone();
+                    node.add_child(block_node.1.clone());
+                }
+                Token::For => {
+                    node = new_node_from_token(index, Token::For);
+                    let simp_node = self.token_index_to_node.get(&(index+2)).expect("has value").clone();
+                    node.add_child(simp_node.1);
+                    let expression_node = self.token_index_to_node.get(&(simp_node.0 + 1)).expect("has value").clone();
+                    node.add_child(expression_node.1);
+                    let simp_node = self.token_index_to_node.get(&(expression_node.0 + 1)).expect("has value").clone();
+                    node.add_child(simp_node.1);
+                    let block_node = self.token_index_to_node.get(&(simp_node.0 + 1)).expect("has value").clone();
+                    node.add_child(block_node.1.clone());
+                }
+                Token::Continue => {
+                    node = new_node_from_token(index, Token::Continue);
+                },
+                Token::Break => {
+                    node = new_node_from_token(index, Token::Break);
+                },
+                _ => {}
+            }
+            self.token_index_to_node.insert(
+                index,
+                (self.pos, node.clone())
+            );
+        }
+
+        return rule_result;
     }
 
     fn block_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![Rhs::Nonterminal(Parser::stmt_rule)],
             vec![
                 Rhs::Terminal(Token::LeftBrace),
@@ -148,15 +273,61 @@ impl Parser {
                 Rhs::Terminal(Token::RightBrace)
             ],
         ], false);
+
+        if rule_result.matched {
+            let index_start = self.pos - rule_result.tokens_consumed;
+            let first_token = (*self.tokens.get(index_start).clone().expect("has value")).clone();
+            match first_token {
+                Token::LeftBrace => {
+                    let token_range_start = self.pos - rule_result.tokens_consumed;
+                    let token_range_end = self.pos;
+                    let mut index = token_range_start + 1;
+                    let mut node= new_node_from_token(token_range_start, Token::Id(String::from("BLOCK")));
+                    while  index < token_range_end - 1 {
+                        let child = self.token_index_to_node.get(&index).expect("has value").clone();
+                        node.add_child(child.1.clone());
+                        index = child.0;
+                    }
+                    self.token_index_to_node.insert(
+                        index_start,
+                        (self.pos, node.clone())
+                    );
+                },
+                _ => {
+                    let mut node= new_node_from_token(index_start, Token::Id(String::from("SINGLE_BLOCK")));
+                    let stmt_node = self.token_index_to_node.get(&index_start).expect("has value").clone();
+                    node.add_child(stmt_node.1.clone());
+                    self.token_index_to_node.insert(
+                        index_start,
+                        (self.pos, node.clone())
+                    );
+                }
+            }
+        }
+
+        return rule_result;
     }
 
     fn else_block_rule(&mut self) -> RuleResult {
-        return self.run_rules_from_rhs(vec![
+        let rule_result = self.run_rules_from_rhs(vec![
             vec![
                 Rhs::Terminal(Token::Else),
                 Rhs::Nonterminal(Parser::block_rule)
             ]
         ], true);
+
+        if rule_result.matched && rule_result.tokens_consumed > 0 {
+            let index_start = self.pos - rule_result.tokens_consumed;
+            let mut node= new_node_from_token(index_start, Token::Else);
+            let block_node = self.token_index_to_node.get(&(index_start+1)).expect("has value").clone();
+            node.add_child(block_node.1.clone());
+            self.token_index_to_node.insert(
+                index_start,
+                (self.pos, node.clone())
+            );            
+        }
+
+        return rule_result;
     }
 
     fn exp_rule(&mut self) -> RuleResult {
@@ -167,7 +338,7 @@ impl Parser {
             ],
         ], false);
 
-        if rule_result.matched && rule_result.tokens_consumed > 1 {
+        if rule_result.matched && rule_result.tokens_consumed > 0 {
             println!("precedence_1_rule (exp) starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
             self.construct_expression_node_from_token_range(
                 self.pos-rule_result.tokens_consumed,
@@ -305,8 +476,6 @@ impl Parser {
                 index,
                 (self.pos, node.clone())
             );                    
-            println!("TREEEE: {:?}", node);
-            println!("HASHMAP: {:?}", self.token_index_to_node);            
         } else if rule_result.matched && rule_result.tokens_consumed > 2 {
             // For cases like -(1+3), !(alpha+2).
             // Notice that the expression inside the parentheses
@@ -347,8 +516,6 @@ impl Parser {
                     token_range_start,
                     (self.pos, node.clone())
                 );                    
-                println!("TREEEE: {:?}", node);
-                println!("HASHMAP: {:?}", self.token_index_to_node);
                 break;
             }
         }
@@ -568,14 +735,14 @@ impl Parser {
     // This method is used to construct the AST nodes for expressions.
     // It takes a token range (start and end indices) that contains
     // an expression and it creates an AST node that models this expression.
-    // This node is then inserted in the `token_index_to_expression_node` map.
+    // This node is then inserted in the `token_index_to_node` map.
 
     // It works in the following way: 
     // There are 2 stacks, one storing operators and one storing operands.
     // An operand is not necessarily a number. It can also be another 
     // expression (in the form of a Node). The code starts by iterating over
     // the given token range. 
-    //  * We check if there is an entry in the `token_index_to_expression_node`
+    //  * We check if there is an entry in the `token_index_to_node`
     //    map starting from the current token. If we find an entry, it means
     //    that a previous invocation of this method parsed a subexpression
     //    starting from that token, so we skip the tokens starting from
@@ -592,12 +759,12 @@ impl Parser {
     //  2. While the operator stack is not empty, we pop one operand and one operator
     //     and, using the node previously created, we create a new node (the parent is 
     //     the operator and the children are the operand and the previous node).
-    // After building the AST node, we add it to the `token_index_to_expression_node` map.
+    // After building the AST node, we add it to the `token_index_to_node` map.
     //  
     // NOTE: This method itself is 'dumb', meaning it does not understand operator precedence.
     // All the magic happens when this method is invoked in the grammar's production rules for
     // expressions (fn precedence_x_rule). In a bottom-up apporach, the nodes of the expressions
-    // are added to the `token_index_to_expression_node` map based on the precedence of the operators,
+    // are added to the `token_index_to_node` map based on the precedence of the operators,
     // and then the rule for the lower precedence level will understand that some subexpressions
     // were parsed, and it will ignore them.
     fn construct_expression_node_from_token_range(&mut self, token_range_start: usize, token_range_end: usize) {
@@ -672,8 +839,6 @@ impl Parser {
             self.token_index_to_node.get_mut(&token_range_start).expect("not null").0 = token_range_end;
             self.token_index_to_node.get_mut(&token_range_start).expect("not null").1 = node.clone();
         }
-        println!("TREEEE: {:?}", node);
-        println!("HASHMAP: {:?}", self.token_index_to_node);
     }
 
 }
