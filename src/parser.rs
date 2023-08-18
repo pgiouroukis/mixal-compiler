@@ -752,7 +752,12 @@ impl Parser {
     //    that token is skipped. 
     //  * If the token is an operand (num or variable), we push it to the operand stack. 
     //  * If the token is an operator, we push it to the operator stack.
-    // After filling the stacks, we construct the tree in the following way:
+    // After filling the stacks, we reverse them. We do this because we need the tree
+    // to have the 'descending' children on the left of the node. This is important for
+    // operands that are not associative. Consider the scenario when parsing  the 
+    // expression '1 - 2 - 3'. If we construct a tree with 'descending' child on the
+    // right, we end up with '1-(2-3)', which yields a wrong result. By reversing the 
+    // stack we prevent this behaviour. We construct the tree in the following way:
     //  1. We pop two operands and one operator from the appropriate stacks and we
     //     create a Node with these three (the parent is the operator, the children are 
     //     the operands).
@@ -798,34 +803,38 @@ impl Parser {
             }
             token_index += 1;
         }
-        let mut right_node;
+        operand_stack.reverse();
+        operator_stack.reverse();        
+        let mut left_node;
         let first_operand = operand_stack.pop().expect("has value");
         match first_operand.1 {
             StackItem::Token(val) => {
-                right_node = new_node_from_token(first_operand.0, val.clone());
+                left_node = new_node_from_token(first_operand.0, val.clone());
             },
             StackItem::Node(val) => {
-                right_node = val;
+                left_node = val;
             }
         }
         let mut node = new_node_from_token(0, Token::ExclamationMark);
         if operator_stack.is_empty() {
-            node = right_node
+            node = left_node;
         } else {
             while !operator_stack.is_empty() {
                 let operator_node = operator_stack.pop().expect("has value");
                 node = new_node_from_token(operator_node.0, operator_node.1);
                 let operand_node = operand_stack.pop().expect("has value");
+                let right_node;
                 match operand_node.1 {
                     StackItem::Token(val) => {
-                        node.add_child(new_node_from_token(operand_node.0, val.clone()));
+                        right_node = new_node_from_token(operand_node.0, val.clone());
                     },
                     StackItem::Node(val) => {
-                        node.add_child(val);
+                        right_node = val;
                     }
                 }
+                node.add_child(left_node.clone());
                 node.add_child(right_node.clone());
-                right_node = node.clone();
+                left_node = node.clone();
             }
         }
     
