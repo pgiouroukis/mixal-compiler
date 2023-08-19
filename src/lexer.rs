@@ -89,7 +89,7 @@ pub enum Token {
     #[regex("[a-zA-Z]([a-zA-Z]|[0-9]|_)*", to_string)]
     Id(String),
     #[regex("([1-9][0-9]*)|0", to_num)]
-    Num(i64),
+    Num(u32),
 
     // The following variant is not a token.
     // We use it as a value in AST nodes
@@ -103,6 +103,6 @@ fn to_string(lex: &mut Lexer<Token>) -> Option<String> {
     Some(string)
 }
 
-fn to_num(lex: &mut Lexer<Token>) -> Option<i64> {
+fn to_num(lex: &mut Lexer<Token>) -> Option<u32> {
     Some(lex.slice().parse().ok()?)
 }
