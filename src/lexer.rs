@@ -90,6 +90,12 @@ pub enum Token {
     Id(String),
     #[regex("([1-9][0-9]*)|0", to_num)]
     Num(i64),
+
+    // The following variant is not a token.
+    // We use it as a value in AST nodes
+    // in order to group together tokens,
+    // for example blocks of statements
+    Ast(String)    
 }
 
 fn to_string(lex: &mut Lexer<Token>) -> Option<String> {

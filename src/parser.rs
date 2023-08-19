@@ -22,7 +22,7 @@ impl Parser {
         Parser { 
             pos: 0, 
             tokens,
-            ast: new_node_from_token(0, Token::Break),
+            ast: new_node_from_token(0, Token::Ast(String::from("ROOT_AST_NODE"))),
             token_index_to_node: HashMap::new()
         }
     }
@@ -45,7 +45,7 @@ impl Parser {
             let token_range_start = self.pos - rule_result.tokens_consumed;
             let token_range_end = self.pos;
             let mut index = token_range_start + 1;
-            let mut node= new_node_from_token(token_range_start, Token::Id(String::from("PROGRAM")));
+            let mut node= new_node_from_token(token_range_start, Token::Ast(String::from("PROGRAM")));
             while  index < token_range_end - 1 {
                 let child = self.token_index_to_node.get(&index).expect("has value").clone();                
                 node.add_child(child.1.clone());
@@ -282,7 +282,7 @@ impl Parser {
                     let token_range_start = self.pos - rule_result.tokens_consumed;
                     let token_range_end = self.pos;
                     let mut index = token_range_start + 1;
-                    let mut node= new_node_from_token(token_range_start, Token::Id(String::from("BLOCK")));
+                    let mut node= new_node_from_token(token_range_start, Token::Ast(String::from("BLOCK")));
                     while  index < token_range_end - 1 {
                         let child = self.token_index_to_node.get(&index).expect("has value").clone();
                         node.add_child(child.1.clone());
@@ -294,7 +294,7 @@ impl Parser {
                     );
                 },
                 _ => {
-                    let mut node= new_node_from_token(index_start, Token::Id(String::from("SINGLE_BLOCK")));
+                    let mut node= new_node_from_token(index_start, Token::Ast(String::from("SINGLE_BLOCK")));
                     let stmt_node = self.token_index_to_node.get(&index_start).expect("has value").clone();
                     node.add_child(stmt_node.1.clone());
                     self.token_index_to_node.insert(
