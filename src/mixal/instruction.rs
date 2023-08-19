@@ -30,6 +30,6 @@ impl MixalInstruction {
             operand_value = value.to_string();
         };
 
-        return format!("{} {} {}", label_value, mnemonic_value, operand_value);
+        return format!("{} {} {}\n", label_value, mnemonic_value, operand_value);
     }
 }
