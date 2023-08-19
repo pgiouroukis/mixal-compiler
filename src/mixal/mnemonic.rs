@@ -5,4 +5,5 @@ pub enum MixalMnemonic {
     END,
 
     // MIX machine instructions
+    STZ,
 }
