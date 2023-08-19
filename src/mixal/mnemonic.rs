@@ -5,6 +5,4 @@ pub enum MixalMnemonic {
     END,
 
     // MIX machine instructions
-    NOP,
-    HLT
 }
