@@ -463,7 +463,7 @@ impl Parser {
             match unary_token {
                 Token::Minus => {
                     node = new_node_from_token(index, Token::Asterisk);      
-                    node.add_child(new_node_from_token(index+10001, Token::Num(0)));
+                    node.add_child(new_node_from_token(index+10001, Token::Num(-1)));
                     node.add_child(new_node_from_token(index+10002, value_token.clone()));
                 }, 
                 Token::ExclamationMark => {
@@ -503,7 +503,7 @@ impl Parser {
                 match token {
                     Token::Minus => {
                         node = new_node_from_token(token_index, Token::Asterisk);      
-                        node.add_child(new_node_from_token(token_index+10001, Token::Num(0)));
+                        node.add_child(new_node_from_token(token_index+10001, Token::Num(-1)));
                         node.add_child(right_hand_side.1.clone());
                     },
                     Token::ExclamationMark => {
