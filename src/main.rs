@@ -11,6 +11,8 @@ fn main() {
     let program: String = String::from(
         "{ \
             var alpha, beta, gamma, i, j, k: int; \
+            alpha = 0; \
+            beta = alpha; \
         }",
     );
 

@@ -3,7 +3,7 @@ use std::{fs::File, io::Write};
 use std::process::Command;
 use std::collections::HashMap;
 use crate::lexer::Token;
-use super::{instruction::*, mnemonic::*};
+use super::{instruction::*, mnemonic::*, register::*, utilities::*};
 
 const PROGRAM_INSTRUCTIONS_ALLOCATION_ADDRESS: u16 = 2000;
 
@@ -45,6 +45,9 @@ impl MixalAssembler {
                 Token::Int => {
                     self.handle_variable_declaration(child.clone());
                 },
+                Token::Assignment => {
+                    self.handle_assignment_operator(child.clone());
+                },
                 _ => {}
             }
         }
@@ -59,6 +62,24 @@ impl MixalAssembler {
                 self.vtable.insert(identifier.clone(), memory_address_to_allocate);
             }
             self.next_memory_address_to_allocate += 1;
+        }
+    }
+
+    fn handle_assignment_operator(&mut self, node: Node<usize, Token>) {
+        let children = node.children();
+        let expression_node = children.get(1).expect("to exist");
+        
+        // We assume this will compute and store 
+        // the expression result to register RA
+        // TODO: implement 'self.handle_expression_node(expression_node)'
+        
+        let identifier_token = children.get(0).expect("to exist").value();
+        if let Token::Id(identifier) = identifier_token {
+            let identifier_memory_address = self.vtable.get(identifier).expect("to exist").clone();
+            self.instruction_store_register_to_address(
+                identifier_memory_address,
+                MixalRegister::RA
+            );
         }
     }
 
@@ -88,6 +109,15 @@ impl MixalAssembler {
             None,
             MixalMnemonic::END,
             Some(String::from(address.to_string()))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_store_register_to_address(&mut self, address: u16, register: MixalRegister) {
+        let mut instruction = MixalInstruction::new(
+            None,
+            mixal_register_to_store_mnemonic(register),
+            Some(String::from(format!("{}(0:5)", address.to_string())))
         );
         self.write_to_file(instruction.to_string());
     }
