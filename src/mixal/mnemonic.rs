@@ -16,4 +16,5 @@ pub enum MixalMnemonic {
     STZ,
     ADD,
     SUB,
+    MUL,
 }

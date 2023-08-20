@@ -106,7 +106,7 @@ impl MixalAssembler {
             let operator_fn = 
                 MixalAssembler::token_to_arithmetic_operator_instruction_fn(node.value());
             match node.value() {
-                Token::Plus | Token::Minus => {
+                Token::Plus | Token::Minus | Token::Asterisk => {
                     if let (Token::Num(number1), Token::Num(number2)) = (left_operand.value(), right_operand.value()) {
                         self.instruction_enter_immediate_value_to_register(*number2, MixalRegister::RA);
                         self.instruction_store_register_to_address(0, MixalRegister::RA);
@@ -130,6 +130,17 @@ impl MixalAssembler {
                         self.instruction_store_register_to_address(0, MixalRegister::RX);
                         operator_fn(self, 0);
                     }
+                    if let Token::Asterisk = node.value() {
+                        // RA contains the upper bits of the result and 
+                        // RX contains the lower bits of the result. 
+                        // The sign of the result is stored in the sign bit of RA
+                        // For now, we don't handle overflows and only care about
+                        // the lower bits of the result
+                        self.instruction_store_register_sign_to_address(0, MixalRegister::RA);
+                        self.instruction_store_register_without_sign_to_address(0, MixalRegister::RX);
+                        self.instruction_load_address_to_register(0, MixalRegister::RA);
+                        // TODO: add code that throws exception when the result overflows
+                    }                    
                 },
                 // TODO: handle the rest of the cases here
                 _ => {}
@@ -147,6 +158,7 @@ impl MixalAssembler {
         match token {
             Token::Plus => MixalAssembler::instruction_add,
             Token::Minus => MixalAssembler::instruction_subtract,
+            Token::Asterisk => MixalAssembler::instruction_multiply,
             _ => MixalAssembler::instruction_add
         }        
     }    
@@ -195,6 +207,24 @@ impl MixalAssembler {
         self.write_to_file(instruction.to_string());
     }
 
+    fn instruction_store_register_sign_to_address(&mut self, address: u16, register: MixalRegister) {
+        let mut instruction = MixalInstruction::new(
+            None,
+            mixal_register_to_store_mnemonic(register),
+            Some(String::from(format!("{}(0:0)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_store_register_without_sign_to_address(&mut self, address: u16, register: MixalRegister) {
+        let mut instruction = MixalInstruction::new(
+            None,
+            mixal_register_to_store_mnemonic(register),
+            Some(String::from(format!("{}(1:5)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
     fn instruction_store_zero_to_address(&mut self, address: u16) {
         let mut instruction = MixalInstruction::new(
             None,
@@ -229,5 +259,14 @@ impl MixalAssembler {
             Some(String::from(format!("{}(0:5)", address.to_string())))
         );
         self.write_to_file(instruction.to_string());
-    }    
+    }
+
+    fn instruction_multiply(&mut self, address: u16) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::MUL,
+            Some(String::from(format!("{}(0:5)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string());
+    }
 }

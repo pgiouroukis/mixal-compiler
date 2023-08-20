@@ -13,10 +13,11 @@ fn main() {
             var alpha, beta, gamma, i, j, k: int; \
             alpha = 1; \
             beta = 3; \
-            gamma = 1 + 3; \
-            gamma = alpha + 3; \
-            gamma = 1 + beta; \
-            gamma = alpha + beta; \
+            gamma = -1; \
+            gamma = 1 * 3; \
+            gamma = alpha * 3; \
+            gamma = 1 * beta; \
+            gamma = alpha * beta; \
         }",
     );
 
