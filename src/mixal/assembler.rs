@@ -68,10 +68,7 @@ impl MixalAssembler {
     fn handle_assignment_operator(&mut self, node: Node<usize, Token>) {
         let children = node.children();
         let expression_node = children.get(1).expect("to exist");
-        
-        // We assume this will compute and store 
-        // the expression result to register RA
-        // TODO: implement 'self.handle_expression_node(expression_node)'
+        self.handle_expression_node(expression_node.clone());
         
         let identifier_token = children.get(0).expect("to exist").value();
         if let Token::Id(identifier) = identifier_token {
@@ -81,6 +78,18 @@ impl MixalAssembler {
                 MixalRegister::RA
             );
         }
+    }
+
+    fn handle_expression_node(&mut self, node: Node<usize, Token>) {
+        if let Token::Num(number) = node.value() {
+            self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RA);
+        } else if let Token::Id(identifier) = node.value() {
+            self.instruction_load_address_to_register(
+                self.vtable.get(identifier).expect("to exist").clone(),
+                MixalRegister::RA
+            );
+        }
+        // TODO: handle the rest of the cases here
     }
 
     fn write_to_file(&mut self, str: String) {
@@ -113,6 +122,15 @@ impl MixalAssembler {
         self.write_to_file(instruction.to_string());
     }
 
+    fn instruction_load_address_to_register(&mut self, address: u16, register: MixalRegister) {
+        let mut instruction = MixalInstruction::new(
+            None,
+            mixal_register_to_load_mnemonic(register),
+            Some(String::from(format!("{}(0:5)", address)))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
     fn instruction_store_register_to_address(&mut self, address: u16, register: MixalRegister) {
         let mut instruction = MixalInstruction::new(
             None,
@@ -127,6 +145,15 @@ impl MixalAssembler {
             None,
             MixalMnemonic::STZ,
             Some(String::from(format!("{}(0:5)", address)))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_enter_immediate_value_to_register(&mut self, value: i32, register: MixalRegister) {
+        let mut instruction = MixalInstruction::new(
+            None,
+            mixal_register_to_enter_mnemonic(register, value),
+            Some(String::from(value.abs().to_string()))
         );
         self.write_to_file(instruction.to_string());
     }
