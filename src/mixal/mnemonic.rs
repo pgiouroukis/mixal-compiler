@@ -5,5 +5,13 @@ pub enum MixalMnemonic {
     END,
 
     // MIX machine instructions
+    LDA,
+    LDX,
+    STA,
+    STX,
+    ENTA,
+    ENTX,
+    ENNA,
+    ENNX,    
     STZ,
 }
