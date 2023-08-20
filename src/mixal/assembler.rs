@@ -83,18 +83,73 @@ impl MixalAssembler {
     fn handle_expression_node(&mut self, node: Node<usize, Token>) {
         if let Token::Num(number) = node.value() {
             self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RA);
+            return;
         } else if let Token::Id(identifier) = node.value() {
             self.instruction_load_address_to_register(
                 self.vtable.get(identifier).expect("to exist").clone(),
                 MixalRegister::RA
             );
+            return;
         }
+
+        let children = node.children();
+        let left_operand = children.get(0).expect("to exist");
+        let right_operand = children.get(1).expect("to exist");
+
+        if left_operand.is_leaf() && right_operand.is_leaf() {
+            // This is the basic case, where it is possible to directly 
+            // compute a result, since the 2 operands are actual values. 
+            // Because an operand can be either a Number or a Variable, 
+            // we must handle 4 cases, one for every combination. After 
+            // computing a result, we store it in register RA so it
+            // becomes available for future instructions
+            let operator_fn = 
+                MixalAssembler::token_to_arithmetic_operator_instruction_fn(node.value());
+            match node.value() {
+                Token::Plus | Token::Minus => {
+                    if let (Token::Num(number1), Token::Num(number2)) = (left_operand.value(), right_operand.value()) {
+                        self.instruction_enter_immediate_value_to_register(*number2, MixalRegister::RA);
+                        self.instruction_store_register_to_address(0, MixalRegister::RA);
+                        self.instruction_enter_immediate_value_to_register(*number1, MixalRegister::RA);
+                        operator_fn(self, 0);
+                    } else if let (Token::Id(identifier1), Token::Id(identifier2)) = (left_operand.value(), right_operand.value()) {
+                        let identifier1_address = self.vtable.get(identifier1).expect("to exist").clone();
+                        let identifier2_address = self.vtable.get(identifier2).expect("to exist").clone();
+                        self.instruction_load_address_to_register(identifier1_address, MixalRegister::RA);
+                        operator_fn(self, identifier2_address);
+                    } else if let (Token::Num(number), Token::Id(identifier)) = (left_operand.value(), right_operand.value()) {
+                        self.instruction_enter_immediate_value_to_register(number.clone(), MixalRegister::RA);
+                        operator_fn(
+                            self,
+                            self.vtable.get(identifier).expect("to exist").clone()
+                        );
+                    } else if let (Token::Id(identifier), Token::Num(number)) = (left_operand.value(), right_operand.value()) {
+                        let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
+                        self.instruction_load_address_to_register(identifier_address, MixalRegister::RA);
+                        self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RX);
+                        self.instruction_store_register_to_address(0, MixalRegister::RX);
+                        operator_fn(self, 0);
+                    }
+                },
+                // TODO: handle the rest of the cases here
+                _ => {}
+            }
+            return;
+        }                
         // TODO: handle the rest of the cases here
     }
 
     fn write_to_file(&mut self, str: String) {
         self.file.write_all(str.as_bytes()).expect("to be written");
     }
+
+    fn token_to_arithmetic_operator_instruction_fn(token: &Token) -> fn(&mut MixalAssembler, u16) {
+        match token {
+            Token::Plus => MixalAssembler::instruction_add,
+            Token::Minus => MixalAssembler::instruction_subtract,
+            _ => MixalAssembler::instruction_add
+        }        
+    }    
 
     // ---------------------------------------------
     //             MIXAL INSTRUCTIONS              
@@ -157,4 +212,22 @@ impl MixalAssembler {
         );
         self.write_to_file(instruction.to_string());
     }
+
+    fn instruction_add(&mut self, address: u16) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::ADD, 
+            Some(String::from(format!("{}(0:5)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_subtract(&mut self, address: u16) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::SUB, 
+            Some(String::from(format!("{}(0:5)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string());
+    }    
 }

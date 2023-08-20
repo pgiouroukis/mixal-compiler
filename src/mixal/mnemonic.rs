@@ -14,4 +14,6 @@ pub enum MixalMnemonic {
     ENNA,
     ENNX,    
     STZ,
+    ADD,
+    SUB,
 }
