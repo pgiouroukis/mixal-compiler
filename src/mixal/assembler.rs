@@ -142,6 +142,46 @@ impl MixalAssembler {
                         // TODO: add code that throws exception when the result overflows
                     }                    
                 },
+                Token::Slash | Token::Percent => {
+                    // In the AST, the Token::Num does not store negative numbers.
+                    // The only exception to this occurs when an expression uses
+                    // the unary minus operator `-x`. In this case, the AST transforms
+                    // `-x` to `(-1) * x`, and thus needs to store `Token::Num(-1)`.
+                    // But this case is handled in the multiplication operator case above.
+                    // So, in the code below, we assume that every Token::Num is positive.
+                    // Note that the value of a `Token::Id` in memory CAN be negative.
+                    if let (Token::Num(number1), Token::Num(number2)) = (left_operand.value(), right_operand.value()) {
+                        self.instruction_enter_immediate_value_to_register(*number2, MixalRegister::RA);
+                        self.instruction_store_register_to_address(0, MixalRegister::RA);
+                        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+                        self.instruction_enter_immediate_value_to_register(*number1, MixalRegister::RX);
+                        operator_fn(self, 0);
+                    } if let (Token::Id(identifier1), Token::Id(identifier2)) = (left_operand.value(), right_operand.value()) {
+                        let identifier1_address = self.vtable.get(identifier1).expect("to exist").clone();
+                        let identifier2_address = self.vtable.get(identifier2).expect("to exist").clone();
+                        self.instruction_load_address_to_register(identifier1_address, MixalRegister::RX);
+                        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+                        self.instruction_load_address_sign_to_register(identifier1_address, MixalRegister::RA);
+                        operator_fn(self, identifier2_address);
+                    } else if let (Token::Num(number), Token::Id(identifier)) = (left_operand.value(), right_operand.value()){
+                        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+                        self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RX);
+                        let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
+                        operator_fn(self, identifier_address);
+                    } else if let (Token::Id(identifier), Token::Num(number)) = (left_operand.value(), right_operand.value()) {
+                        let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
+                        self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RA);
+                        self.instruction_store_register_to_address(0, MixalRegister::RA);
+                        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+                        self.instruction_load_address_sign_to_register(identifier_address, MixalRegister::RA);
+                        self.instruction_load_address_to_register(identifier_address, MixalRegister::RX);
+                        operator_fn(self, 0);
+                    }
+                    if let Token::Percent = node.value() {
+                        self.instruction_store_register_to_address(0, MixalRegister::RX);
+                        self.instruction_load_address_to_register(0, MixalRegister::RA);
+                    }                    
+                }                
                 // TODO: handle the rest of the cases here
                 _ => {}
             }
@@ -159,9 +199,10 @@ impl MixalAssembler {
             Token::Plus => MixalAssembler::instruction_add,
             Token::Minus => MixalAssembler::instruction_subtract,
             Token::Asterisk => MixalAssembler::instruction_multiply,
+            Token::Slash | Token::Percent => MixalAssembler::instruction_divide_and_modulo,
             _ => MixalAssembler::instruction_add
         }        
-    }    
+    }
 
     // ---------------------------------------------
     //             MIXAL INSTRUCTIONS              
@@ -194,6 +235,15 @@ impl MixalAssembler {
             None,
             mixal_register_to_load_mnemonic(register),
             Some(String::from(format!("{}(0:5)", address)))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_load_address_sign_to_register(&mut self, address: u16, register: MixalRegister) {
+        let mut instruction = MixalInstruction::new(
+            None,
+            mixal_register_to_load_mnemonic(register),
+            Some(String::from(format!("{}(0:0)", address)))
         );
         self.write_to_file(instruction.to_string());
     }
@@ -265,6 +315,15 @@ impl MixalAssembler {
         let mut instruction = MixalInstruction::new(
             None, 
             MixalMnemonic::MUL,
+            Some(String::from(format!("{}(0:5)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_divide_and_modulo(&mut self, address: u16) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::DIV,
             Some(String::from(format!("{}(0:5)", address.to_string())))
         );
         self.write_to_file(instruction.to_string());
