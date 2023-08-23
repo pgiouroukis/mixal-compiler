@@ -80,6 +80,8 @@ impl MixalAssembler {
         }
     }
 
+    // Computes the expression starting from `node`
+    // and stores the result in register RA
     fn handle_expression_node(&mut self, node: Node<usize, Token>) {
         if let Token::Num(number) = node.value() {
             self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RA);
@@ -89,6 +91,11 @@ impl MixalAssembler {
                 self.vtable.get(identifier).expect("to exist").clone(),
                 MixalRegister::RA
             );
+            return;
+        } else if let Token::ExclamationMark = node.value() {
+            let child = node.children().get(0).expect("to exist");
+            self.handle_expression_node(child.clone());
+            self.instructions_logical_not();
             return;
         }
 
@@ -541,4 +548,15 @@ impl MixalAssembler {
         self.instructions_move_register_to_register(MixalRegister::RI1, MixalRegister::RA);
     }
 
+    fn instructions_logical_not(&mut self) {
+        let charset: String = ('A'..'Z').map(|c| c as char).collect();
+        let label = random_string::generate(3, charset.clone());
+    
+        self.instruction_store_zero_to_address(0);
+        self.instruction_compare_ra(0);
+        self.instruction_enter_immediate_value_to_register(1, MixalRegister::RA);
+        self.instruction_jump_to_label_if_comparison_was_true(Token::Equals, label.clone());
+        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+        self.instruction_nop_with_label(label.clone());        
+    }
 }
