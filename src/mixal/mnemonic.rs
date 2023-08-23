@@ -3,6 +3,7 @@ pub enum MixalMnemonic {
     // Assembly pseudoinstructions
     ORIG,
     END,
+    NOP,
 
     // MIX machine instructions
     LDA,
@@ -18,4 +19,11 @@ pub enum MixalMnemonic {
     SUB,
     MUL,
     DIV,
+    CMPA,
+    JL,
+    JE,
+    JG,
+    JGE,
+    JNE,
+    JLE,
 }

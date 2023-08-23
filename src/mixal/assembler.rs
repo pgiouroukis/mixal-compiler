@@ -154,7 +154,12 @@ impl MixalAssembler {
                         MixalRegister::RX,
                         MixalRegister::RA                        
                     );
-                }                
+                },
+                Token::Equals | Token::NotEquals
+                | Token::LessThan | Token::LessThanOrEquals
+                | Token::GreaterThan | Token::GreaterThanOrEquals => {
+                    self.instructions_load_comparison_result_to_register_ra(node.value().clone());
+                },
                 _ => {}
             }
         }
@@ -170,6 +175,9 @@ impl MixalAssembler {
             Token::Minus => MixalAssembler::instruction_subtract,
             Token::Asterisk => MixalAssembler::instruction_multiply,
             Token::Slash | Token::Percent => MixalAssembler::instruction_divide_and_modulo,
+            Token::Equals | Token::NotEquals
+            | Token::LessThan | Token::LessThanOrEquals
+            | Token::GreaterThan | Token::GreaterThanOrEquals => MixalAssembler::instruction_compare,
             _ => MixalAssembler::instruction_add
         }        
     }
@@ -202,6 +210,15 @@ impl MixalAssembler {
             Some(String::from(address.to_string()))
         );
         self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_nop_with_label(&mut self, label: String) {
+        let mut instruction = MixalInstruction::new(
+            Some(label),
+            MixalMnemonic::NOP,
+            None
+        );
+        self.write_to_file(instruction.to_string());        
     }
 
     fn instruction_load_address_to_register(&mut self, address: u16, register: MixalRegister) {
@@ -301,6 +318,24 @@ impl MixalAssembler {
             Some(String::from(format!("{}(0:5)", address.to_string())))
         );
         self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_compare(&mut self, address: u16) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::CMPA,
+            Some(String::from(format!("{}(0:5)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_jump_to_label_if_comparison_was_true(&mut self, comparison_token: Token, label: String) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            comparison_token_to_jump_instruction(comparison_token),
+            Some(label)
+        );
+        self.write_to_file(instruction.to_string());        
     }
 
     fn instructions_prepare_leaf_operands_and_execute_operator(
@@ -404,6 +439,19 @@ impl MixalAssembler {
         self.instruction_store_register_sign_to_address(0, destination_register.clone());
         self.instruction_store_register_without_sign_to_address(0, origin_register);
         self.instruction_load_address_to_register(0, destination_register);
+    }
+
+    fn instructions_load_comparison_result_to_register_ra(&mut self, comparison_token: Token) {
+        let charset: String = ('A'..'Z').map(|c| c as char).collect();
+        let label = random_string::generate(3, charset);
+
+        self.instruction_enter_immediate_value_to_register(1, MixalRegister::RA);
+        self.instruction_jump_to_label_if_comparison_was_true(
+            comparison_token, 
+            label.clone()
+        );
+        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+        self.instruction_nop_with_label(label.clone());
     }
 
 }

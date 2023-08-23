@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 logos = "0.13.0"
 orange-trees = "0.1.0"
+random-string = "1.0"

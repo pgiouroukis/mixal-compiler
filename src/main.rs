@@ -11,16 +11,15 @@ fn main() {
     let program: String = String::from(
         "{ \
             var alpha, beta, gamma, i, j, k: int; \
-            alpha = -7; \
-            beta = 3; \
-            gamma = 7 / 3; \
-            gamma = alpha / 3; \
-            gamma = 7 / beta; \
-            gamma = alpha / beta; \
-            gamma = 7 % 3; \
-            gamma = alpha % 3; \
-            gamma = 7 % beta; \
-            gamma = alpha % beta; \
+            alpha = 1 == 4; \
+            alpha = 1 != 4; \
+            alpha = 1 > 4; \
+            alpha = 1 >= 4; \
+            alpha = 1 < 4; \
+            alpha = 1 <= 4; \
+            beta = 4; \
+            gamma = 4; \
+            alpha = beta != gamma; \
         }",
     );
 
