@@ -80,7 +80,7 @@ impl MixalAssembler {
         }
     }
 
-    // Computes the expression starting from `node`
+    // Evaluates the expression starting from `node`
     // and stores the result in register RA
     fn handle_expression_node(&mut self, node: Node<usize, Token>) {
         if let Token::Num(number) = node.value() {
@@ -104,8 +104,8 @@ impl MixalAssembler {
         let right_operand = children.get(1).expect("to exist");
 
         if left_operand.is_leaf() && right_operand.is_leaf() {
-            // This is the basic case, where it is possible to directly 
-            // compute a result, since the 2 operands are actual values. 
+            // In this branch, both of the operands are values, so we
+            // can directly evaluate the operator result between them.
             // 
             // In MIX, all the arithmetic and comparison operators 
             // expect the left operand to be stored in register RA 
@@ -116,7 +116,7 @@ impl MixalAssembler {
             // in RX. Because of this exception, we handle division and 
             // modulo operators differently from the rest of the operators.
             //  
-            // After computing a result, we store it in register
+            // After evaluating a result, we store it in register
             // RA so it becomes available for future instructions.
         
             if let Token::Slash | Token::Percent = node.value() {
@@ -132,44 +132,88 @@ impl MixalAssembler {
                     right_operand.value()
                 );
             }
+        } else {
+            // In this branch, one or both of the operands are other
+            // expressions. This means that we first have to evaluate
+            // the expressions in the operands and then evaluate the 
+            // operator result between them.
+            // 
+            // Initially, I thought that by using exclusively CPU registers
+            // (without leveraging extra memory), any expression could
+            // be calculated. But this is not possible for complicated
+            // expressions, because at some point it is required to store
+            // intermediate values (ie evaluated left node) while evaluating
+            // the other node. But, the latter node might also need to store
+            // intermediate values and so on. To solve this, we need to
+            // utilize memory. This is how it is handled below. Upon
+            // evaluating a child expression, we temporarily store it in memory.
+            // After we evaluate the operator result, we de-alloate the memory.
+            // 
+            // Note that for simple expressions, we could still exclusively
+            // use registers, but we don't implement it this way since the
+            // code that decides that could be very comlicated.
 
-            // In order to load their results to RA, 
-            // some operators require more steps after the
-            // execution of the operator. This is handled below.
-            match node.value() {
-                Token::Plus | Token::Minus 
-                | Token::And | Token::Or => {
-                    // No need to do anything for these operators,
-                    // the result is alredy loaded in RA
-                },
-                Token::Asterisk => {
-                    // RA contains the upper bits of the result and 
-                    // RX contains the lower bits of the result. 
-                    // The sign of the result is stored in the sign bit of RA.
-                    // For now, we don't handle overflows and only care about
-                    // the lower bits of the result, so we need to move RX to
-                    // RA, but we have to make sure we don't overwrite the sign.
-                    self.instructions_move_register_without_sign_to_register(
-                        MixalRegister::RX,
-                        MixalRegister::RA
-                    );
-                    // TODO: add code that throws exception when the result overflows                    
-                },
-                Token::Percent => {
-                    // RA contains the result of the division operator and
-                    // RX contains the result of the modulo operator.
-                    self.instructions_move_register_to_register(
-                        MixalRegister::RX,
-                        MixalRegister::RA                        
-                    );
-                },
-                Token::Equals | Token::NotEquals
-                | Token::LessThan | Token::LessThanOrEquals
-                | Token::GreaterThan | Token::GreaterThanOrEquals => {
-                    self.instructions_load_comparison_result_to_register_ra(node.value().clone());
-                },
-                _ => {}
+            self.handle_expression_node(right_operand.clone());
+            let temp_memory_address = self.next_memory_address_to_allocate;
+            self.next_memory_address_to_allocate += 1;
+            self.instruction_store_register_to_address(
+                temp_memory_address,
+                MixalRegister::RA
+            );
+            self.handle_expression_node(left_operand.clone());
+
+            // As explained above, division and modulo require some special treatment
+            if let Token::Slash | Token::Percent = node.value() {
+                self.instruction_store_register_to_address(0, MixalRegister::RA);
+                self.instruction_load_address_to_register(0, MixalRegister::RX);
+                self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+                self.instruction_load_address_sign_to_register(0, MixalRegister::RA);                
             }
+            
+            let operator_fn = 
+                MixalAssembler::token_to_arithmetic_operator_instruction_fn(node.value());
+            operator_fn(self, temp_memory_address);
+
+            self.next_memory_address_to_allocate -= 1;            
+        }
+
+        // At this point, the operator result is evaluated.
+        // However, for some operators it is required to run
+        // extra instructions in order to load the result in
+        // register RA. This is what's handled here.
+        match node.value() {
+            Token::Plus | Token::Minus 
+            | Token::And | Token::Or => {
+                // No need to do anything for these operators,
+                // the result is alredy loaded in RA
+            },
+            Token::Asterisk => {
+                // RA contains the upper bits of the result and 
+                // RX contains the lower bits of the result. 
+                // The sign of the result is stored in the sign bit of RA.
+                // For now, we don't handle overflows and only care about
+                // the lower bits of the result, so we need to move RX to
+                // RA, but we have to make sure we don't overwrite the sign.
+                self.instructions_move_register_without_sign_to_register(
+                    MixalRegister::RX,
+                    MixalRegister::RA
+                );
+                // TODO: add code that throws exception when the result overflows                    
+            },
+            Token::Percent => {
+                // RA contains the result of the division operator and
+                // RX contains the result of the modulo operator.
+                self.instructions_move_register_to_register(
+                    MixalRegister::RX,
+                    MixalRegister::RA                        
+                );
+            },
+            Token::Equals | Token::NotEquals
+            | Token::LessThan | Token::LessThanOrEquals
+            | Token::GreaterThan | Token::GreaterThanOrEquals => {
+                self.instructions_load_comparison_result_to_register_ra(node.value().clone());
+            },
+            _ => {}
         }
     }
 

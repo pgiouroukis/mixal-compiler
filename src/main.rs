@@ -10,11 +10,9 @@ fn main() {
 
     let program: String = String::from(
         "{ \
-            var alpha, beta: int; \
-            beta = 5; \
-            alpha = !beta; \
-            beta = 0; \
-            alpha = !beta; \
+            var alpha: int; \
+            alpha = !(5 + 2 > 3 || 5 + 3 * 2 + 1 < 100) && (-(35 - 37) < 0); \
+            alpha = 1 + !2; \
         }",
     );
 
