@@ -130,7 +130,8 @@ impl MixalAssembler {
             // some operators require more steps after the
             // execution of the operator. This is handled below.
             match node.value() {
-                Token::Plus | Token::Minus => {
+                Token::Plus | Token::Minus 
+                | Token::And | Token::Or => {
                     // No need to do anything for these operators,
                     // the result is alredy loaded in RA
                 },
@@ -177,7 +178,9 @@ impl MixalAssembler {
             Token::Slash | Token::Percent => MixalAssembler::instruction_divide_and_modulo,
             Token::Equals | Token::NotEquals
             | Token::LessThan | Token::LessThanOrEquals
-            | Token::GreaterThan | Token::GreaterThanOrEquals => MixalAssembler::instruction_compare,
+            | Token::GreaterThan | Token::GreaterThanOrEquals => MixalAssembler::instruction_compare_ra,
+            Token::And => MixalAssembler::instructions_logical_and,
+            Token::Or => MixalAssembler::instructions_logical_or,
             _ => MixalAssembler::instruction_add
         }        
     }
@@ -320,13 +323,31 @@ impl MixalAssembler {
         self.write_to_file(instruction.to_string());
     }
 
-    fn instruction_compare(&mut self, address: u16) {
+    fn instruction_compare_ra(&mut self, address: u16) {
         let mut instruction = MixalInstruction::new(
             None, 
             MixalMnemonic::CMPA,
             Some(String::from(format!("{}(0:5)", address.to_string())))
         );
         self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_compare_rx(&mut self, address: u16) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::CMPX,
+            Some(String::from(format!("{}(0:5)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_jump_to_label(&mut self, label: String) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::JSJ,
+            Some(label)
+        );
+        self.write_to_file(instruction.to_string());        
     }
 
     fn instruction_jump_to_label_if_comparison_was_true(&mut self, comparison_token: Token, label: String) {
@@ -452,6 +473,72 @@ impl MixalAssembler {
         );
         self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
         self.instruction_nop_with_label(label.clone());
+    }
+
+    fn instructions_logical_and(&mut self, address: u16) {
+        let charset: String = ('A'..'Z').map(|c| c as char).collect();
+        let bottom_label = random_string::generate(3, charset.clone());
+
+        // Assume that the result is true
+        self.instruction_enter_immediate_value_to_register(1, MixalRegister::RI1);
+
+        // store operand2 to RX
+        self.instruction_load_address_to_register(address, MixalRegister::RX);
+
+        // store 0 to memory address 0
+        self.instruction_store_zero_to_address(0);
+
+        // if RA is zero, set result to 0 and don't check RX
+        let label = random_string::generate(3, charset.clone());
+        self.instruction_compare_ra(0);
+        self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, label.clone());
+        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RI1);
+        self.instruction_jump_to_label(bottom_label.clone());
+        self.instruction_nop_with_label(label.clone());
+
+        // if RX is zero, set result to 0
+        let label = random_string::generate(3, charset.clone());
+        self.instruction_compare_rx(0);
+        self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, label.clone());
+        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RI1);
+        self.instruction_nop_with_label(label.clone());
+
+        self.instruction_nop_with_label(bottom_label.clone());
+        self.instructions_move_register_to_register(MixalRegister::RI1, MixalRegister::RA);
+    }
+
+    fn instructions_logical_or(&mut self, address: u16) {
+        let charset: String = ('A'..'Z').map(|c| c as char).collect();
+        let label_true = random_string::generate(3, charset.clone());
+        let label_bottom = random_string::generate(3, charset.clone());
+
+        // Assume that the result is false
+        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RI1);
+
+        // Store operand2 to RX
+        self.instruction_load_address_to_register(address, MixalRegister::RX);
+
+        // Store 0 to memory address 0
+        self.instruction_store_zero_to_address(0);
+
+        // If RA != 0, jump to 'label_true'
+        self.instruction_compare_ra(0);
+        self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, label_true.clone());
+    
+        // If RA != 0, jump to 'label_true'
+        self.instruction_compare_rx(0);
+        self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, label_true.clone());
+
+        // If this instruction is reached, it means that
+        // the expression is false. Jump to 'label_bottom'
+        self.instruction_jump_to_label(label_bottom.clone());
+
+        self.instruction_nop_with_label(label_true.clone());
+        self.instruction_enter_immediate_value_to_register(1, MixalRegister::RI1);
+
+        self.instruction_nop_with_label(label_bottom.clone());
+
+        self.instructions_move_register_to_register(MixalRegister::RI1, MixalRegister::RA);
     }
 
 }
