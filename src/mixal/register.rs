@@ -1,6 +1,4 @@
-use super::mnemonic::MixalMnemonic;
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MixalRegister {
     RA,
     RX

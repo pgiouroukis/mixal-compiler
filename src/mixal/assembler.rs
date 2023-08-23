@@ -99,100 +99,70 @@ impl MixalAssembler {
         if left_operand.is_leaf() && right_operand.is_leaf() {
             // This is the basic case, where it is possible to directly 
             // compute a result, since the 2 operands are actual values. 
-            // Because an operand can be either a Number or a Variable, 
-            // we must handle 4 cases, one for every combination. After 
-            // computing a result, we store it in register RA so it
-            // becomes available for future instructions
-            let operator_fn = 
-                MixalAssembler::token_to_arithmetic_operator_instruction_fn(node.value());
+            // 
+            // In MIX, all the arithmetic and comparison operators 
+            // expect the left operand to be stored in register RA 
+            // and the right operand to be stored in a memory address.
+            // The only exception to this rule are the division and
+            // modulo operators (instruction DIV), which expect the 
+            // operand's MSBs to be stored in RA and LSBs to be stored 
+            // in RX. Because of this exception, we handle division and 
+            // modulo operators differently from the rest of the operators.
+            //  
+            // After computing a result, we store it in register
+            // RA so it becomes available for future instructions.
+        
+            if let Token::Slash | Token::Percent = node.value() {
+                self.instructions_prepare_leaf_operands_and_execute_division(
+                    node.value(),
+                    left_operand.value(),
+                    right_operand.value(),
+                );
+            } else {
+                self.instructions_prepare_leaf_operands_and_execute_operator(
+                    node.value(),
+                    left_operand.value(),
+                    right_operand.value()
+                );
+            }
+
+            // In order to load their results to RA, 
+            // some operators require more steps after the
+            // execution of the operator. This is handled below.
             match node.value() {
-                Token::Plus | Token::Minus | Token::Asterisk => {
-                    if let (Token::Num(number1), Token::Num(number2)) = (left_operand.value(), right_operand.value()) {
-                        self.instruction_enter_immediate_value_to_register(*number2, MixalRegister::RA);
-                        self.instruction_store_register_to_address(0, MixalRegister::RA);
-                        self.instruction_enter_immediate_value_to_register(*number1, MixalRegister::RA);
-                        operator_fn(self, 0);
-                    } else if let (Token::Id(identifier1), Token::Id(identifier2)) = (left_operand.value(), right_operand.value()) {
-                        let identifier1_address = self.vtable.get(identifier1).expect("to exist").clone();
-                        let identifier2_address = self.vtable.get(identifier2).expect("to exist").clone();
-                        self.instruction_load_address_to_register(identifier1_address, MixalRegister::RA);
-                        operator_fn(self, identifier2_address);
-                    } else if let (Token::Num(number), Token::Id(identifier)) = (left_operand.value(), right_operand.value()) {
-                        self.instruction_enter_immediate_value_to_register(number.clone(), MixalRegister::RA);
-                        operator_fn(
-                            self,
-                            self.vtable.get(identifier).expect("to exist").clone()
-                        );
-                    } else if let (Token::Id(identifier), Token::Num(number)) = (left_operand.value(), right_operand.value()) {
-                        let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
-                        self.instruction_load_address_to_register(identifier_address, MixalRegister::RA);
-                        self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RX);
-                        self.instruction_store_register_to_address(0, MixalRegister::RX);
-                        operator_fn(self, 0);
-                    }
-                    if let Token::Asterisk = node.value() {
-                        // RA contains the upper bits of the result and 
-                        // RX contains the lower bits of the result. 
-                        // The sign of the result is stored in the sign bit of RA
-                        // For now, we don't handle overflows and only care about
-                        // the lower bits of the result
-                        self.instruction_store_register_sign_to_address(0, MixalRegister::RA);
-                        self.instruction_store_register_without_sign_to_address(0, MixalRegister::RX);
-                        self.instruction_load_address_to_register(0, MixalRegister::RA);
-                        // TODO: add code that throws exception when the result overflows
-                    }                    
+                Token::Plus | Token::Minus => {
+                    // No need to do anything for these operators,
+                    // the result is alredy loaded in RA
                 },
-                Token::Slash | Token::Percent => {
-                    // In the AST, the Token::Num does not store negative numbers.
-                    // The only exception to this occurs when an expression uses
-                    // the unary minus operator `-x`. In this case, the AST transforms
-                    // `-x` to `(-1) * x`, and thus needs to store `Token::Num(-1)`.
-                    // But this case is handled in the multiplication operator case above.
-                    // So, in the code below, we assume that every Token::Num is positive.
-                    // Note that the value of a `Token::Id` in memory CAN be negative.
-                    if let (Token::Num(number1), Token::Num(number2)) = (left_operand.value(), right_operand.value()) {
-                        self.instruction_enter_immediate_value_to_register(*number2, MixalRegister::RA);
-                        self.instruction_store_register_to_address(0, MixalRegister::RA);
-                        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
-                        self.instruction_enter_immediate_value_to_register(*number1, MixalRegister::RX);
-                        operator_fn(self, 0);
-                    } if let (Token::Id(identifier1), Token::Id(identifier2)) = (left_operand.value(), right_operand.value()) {
-                        let identifier1_address = self.vtable.get(identifier1).expect("to exist").clone();
-                        let identifier2_address = self.vtable.get(identifier2).expect("to exist").clone();
-                        self.instruction_load_address_to_register(identifier1_address, MixalRegister::RX);
-                        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
-                        self.instruction_load_address_sign_to_register(identifier1_address, MixalRegister::RA);
-                        operator_fn(self, identifier2_address);
-                    } else if let (Token::Num(number), Token::Id(identifier)) = (left_operand.value(), right_operand.value()){
-                        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
-                        self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RX);
-                        let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
-                        operator_fn(self, identifier_address);
-                    } else if let (Token::Id(identifier), Token::Num(number)) = (left_operand.value(), right_operand.value()) {
-                        let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
-                        self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RA);
-                        self.instruction_store_register_to_address(0, MixalRegister::RA);
-                        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
-                        self.instruction_load_address_sign_to_register(identifier_address, MixalRegister::RA);
-                        self.instruction_load_address_to_register(identifier_address, MixalRegister::RX);
-                        operator_fn(self, 0);
-                    }
-                    if let Token::Percent = node.value() {
-                        self.instruction_store_register_to_address(0, MixalRegister::RX);
-                        self.instruction_load_address_to_register(0, MixalRegister::RA);
-                    }                    
+                Token::Asterisk => {
+                    // RA contains the upper bits of the result and 
+                    // RX contains the lower bits of the result. 
+                    // The sign of the result is stored in the sign bit of RA.
+                    // For now, we don't handle overflows and only care about
+                    // the lower bits of the result, so we need to move RX to
+                    // RA, but we have to make sure we don't overwrite the sign.
+                    self.instructions_move_register_without_sign_to_register(
+                        MixalRegister::RX,
+                        MixalRegister::RA
+                    );
+                    // TODO: add code that throws exception when the result overflows                    
+                },
+                Token::Percent => {
+                    // RA contains the result of the division operator and
+                    // RX contains the result of the modulo operator.
+                    self.instructions_move_register_to_register(
+                        MixalRegister::RX,
+                        MixalRegister::RA                        
+                    );
                 }                
-                // TODO: handle the rest of the cases here
                 _ => {}
             }
-            return;
-        }                
-        // TODO: handle the rest of the cases here
+        }
     }
 
     fn write_to_file(&mut self, str: String) {
         self.file.write_all(str.as_bytes()).expect("to be written");
-    }
+    }    
 
     fn token_to_arithmetic_operator_instruction_fn(token: &Token) -> fn(&mut MixalAssembler, u16) {
         match token {
@@ -207,9 +177,13 @@ impl MixalAssembler {
     // ---------------------------------------------
     //             MIXAL INSTRUCTIONS              
     //  The methods below model MIXAL instructions.
-    //  They are prefixed with 'instruction_'.
-    //  When invoked, they will append the 
-    //  instruction to 'self.output_file_path'
+    //  They are prefixed with:
+    //   - "instruction_" when they generate a
+    //     single instruction.
+    //   - "instructions_" when they generate
+    //     a group of instructions.
+    //  When invoked, they will append the needed
+    //  instruction(s) to 'self.output_file_path'
     // ---------------------------------------------
 
     fn instruction_set_instructions_allocation_address(&mut self, address: u16) {
@@ -328,4 +302,108 @@ impl MixalAssembler {
         );
         self.write_to_file(instruction.to_string());
     }
+
+    fn instructions_prepare_leaf_operands_and_execute_operator(
+        &mut self,
+        operator: &Token,
+        left_operand: &Token, 
+        right_operand: &Token
+    ) {
+        let operator_fn = 
+            MixalAssembler::token_to_arithmetic_operator_instruction_fn(operator);
+
+        // Because an operand can be either a Number or a Variable, 
+        // we must handle 4 cases, one for every combination.
+        if let (Token::Num(number1), Token::Num(number2)) = (left_operand, right_operand) {
+            self.instruction_enter_immediate_value_to_register(*number2, MixalRegister::RA);
+            self.instruction_store_register_to_address(0, MixalRegister::RA);
+            self.instruction_enter_immediate_value_to_register(*number1, MixalRegister::RA);
+            operator_fn(self, 0);
+        } else if let (Token::Id(identifier1), Token::Id(identifier2)) = (left_operand, right_operand) {
+            let identifier1_address = self.vtable.get(identifier1).expect("to exist").clone();
+            let identifier2_address = self.vtable.get(identifier2).expect("to exist").clone();
+            self.instruction_load_address_to_register(identifier1_address, MixalRegister::RA);
+            operator_fn(self, identifier2_address);
+        } else if let (Token::Num(number), Token::Id(identifier)) = (left_operand, right_operand) {
+            self.instruction_enter_immediate_value_to_register(number.clone(), MixalRegister::RA);
+            operator_fn(
+                self,
+                self.vtable.get(identifier).expect("to exist").clone()
+            );
+        } else if let (Token::Id(identifier), Token::Num(number)) = (left_operand, right_operand) {
+            let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
+            self.instruction_load_address_to_register(identifier_address, MixalRegister::RA);
+            self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RX);
+            self.instruction_store_register_to_address(0, MixalRegister::RX);
+            operator_fn(self, 0);
+        }
+    }
+
+    fn instructions_prepare_leaf_operands_and_execute_division(
+        &mut self,
+        operator: &Token,
+        left_operand: &Token, 
+        right_operand: &Token        
+    ) {
+        // In the AST, the Token::Num does not store negative numbers.
+        // The only exception to this occurs when an expression uses
+        // the unary minus operator `-x`. In this case, the AST transforms
+        // `-x` to `(-1) * x`, and thus needs to store `Token::Num(-1)`.
+        // But this case is handled in the multiplication operator case.
+        // So, in the code below, we assume that every Token::Num is positive.
+        // Note that the value of a `Token::Id` in memory CAN be negative.
+        
+        let operator_fn = 
+            MixalAssembler::token_to_arithmetic_operator_instruction_fn(operator);
+        
+        // Because an operand can be either a Number or a Variable, 
+        // we must handle 4 cases, one for every combination.
+        if let (Token::Num(number1), Token::Num(number2)) = (left_operand, right_operand) {
+            self.instruction_enter_immediate_value_to_register(*number2, MixalRegister::RA);
+            self.instruction_store_register_to_address(0, MixalRegister::RA);
+            self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+            self.instruction_enter_immediate_value_to_register(*number1, MixalRegister::RX);
+            operator_fn(self, 0);
+        } if let (Token::Id(identifier1), Token::Id(identifier2)) = (left_operand, right_operand) {
+            let identifier1_address = self.vtable.get(identifier1).expect("to exist").clone();
+            let identifier2_address = self.vtable.get(identifier2).expect("to exist").clone();
+            self.instruction_load_address_to_register(identifier1_address, MixalRegister::RX);
+            self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+            self.instruction_load_address_sign_to_register(identifier1_address, MixalRegister::RA);
+            operator_fn(self, identifier2_address);
+        } else if let (Token::Num(number), Token::Id(identifier)) = (left_operand, right_operand){
+            self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+            self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RX);
+            let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
+            operator_fn(self, identifier_address);
+        } else if let (Token::Id(identifier), Token::Num(number)) = (left_operand, right_operand) {
+            let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
+            self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RA);
+            self.instruction_store_register_to_address(0, MixalRegister::RA);
+            self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+            self.instruction_load_address_sign_to_register(identifier_address, MixalRegister::RA);
+            self.instruction_load_address_to_register(identifier_address, MixalRegister::RX);
+            operator_fn(self, 0);
+        }
+    }
+
+    fn instructions_move_register_to_register(
+        &mut self,
+        origin_register: MixalRegister,
+        destination_register: MixalRegister        
+    ) {
+        self.instruction_store_register_to_address(0, origin_register);
+        self.instruction_load_address_to_register(0, destination_register);
+    }
+
+    fn instructions_move_register_without_sign_to_register(
+        &mut self,
+        origin_register: MixalRegister,
+        destination_register: MixalRegister
+    ) {
+        self.instruction_store_register_sign_to_address(0, destination_register.clone());
+        self.instruction_store_register_without_sign_to_address(0, origin_register);
+        self.instruction_load_address_to_register(0, destination_register);
+    }
+
 }
