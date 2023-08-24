@@ -10,13 +10,14 @@ fn main() {
 
     let program: String = String::from(
         "{ \
-            var alpha: int; \
-            alpha = 3; \
-            alpha += 7; \
-            alpha -= 7; \
-            alpha *= 7; \
-            alpha /= 7; \
-            alpha %= 7; \
+            var alpha, beta: int; \
+            if (alpha + 3 * 4) { \
+                beta += 4 + 2; \
+            } else if (alpha == 0) { \
+                beta += 4; \
+            } else beta = 3; \
+            if (beta == 3) alpha = 3; \
+            else beta += 3; \
         }",
     );
 

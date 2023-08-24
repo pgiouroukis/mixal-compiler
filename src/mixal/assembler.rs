@@ -54,6 +54,9 @@ impl MixalAssembler {
                 | Token::ModuloAssignment => {
                     self.handle_arithmetic_assignment_operator(child.clone())
                 }
+                Token::If => {
+                    self.handle_if_statement(child.clone());
+                }
                 _ => {}
             }
         }
@@ -103,6 +106,31 @@ impl MixalAssembler {
         new_assignment_node.add_child(new_expression_node.clone());
 
         self.handle_assignment_operator(new_assignment_node);
+    }
+
+    fn handle_if_statement(&mut self, node: Node<usize, Token>) {
+        let children = node.children();
+        let expression_node = children.get(0).expect("to exist");
+        self.handle_expression_node(expression_node.clone());
+
+        let else_label = get_random_instruction_label();
+        let bottom_label = get_random_instruction_label();
+        
+        self.instruction_store_zero_to_address(0);
+        self.instruction_compare_ra(0);
+        self.instruction_jump_to_label_if_comparison_was_true(Token::Equals, else_label.clone());
+        let block_node = children.get(1).expect("to exist");
+        self.handle_root(block_node.clone());
+        self.instruction_jump_to_label(bottom_label.clone());
+
+        self.instruction_nop_with_label(else_label.clone());
+        if children.len() == 3 {
+            let else_node = children.get(2).expect("to exist");
+            let else_block_node = else_node.children().get(0).expect("to exist");
+            self.handle_root(else_block_node.clone());
+        }
+
+        self.instruction_nop_with_label(bottom_label.clone());
     }
 
     // Evaluates the expression starting from `node`
