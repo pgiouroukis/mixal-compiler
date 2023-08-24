@@ -539,8 +539,7 @@ impl MixalAssembler {
     }
 
     fn instructions_load_comparison_result_to_register_ra(&mut self, comparison_token: Token) {
-        let charset: String = ('A'..'Z').map(|c| c as char).collect();
-        let label = random_string::generate(3, charset);
+        let label = get_random_instruction_label();
 
         self.instruction_enter_immediate_value_to_register(1, MixalRegister::RA);
         self.instruction_jump_to_label_if_comparison_was_true(
@@ -552,8 +551,7 @@ impl MixalAssembler {
     }
 
     fn instructions_logical_and(&mut self, address: u16) {
-        let charset: String = ('A'..'Z').map(|c| c as char).collect();
-        let bottom_label = random_string::generate(3, charset.clone());
+        let bottom_label = get_random_instruction_label();
 
         // Assume that the result is true
         self.instruction_enter_immediate_value_to_register(1, MixalRegister::RI1);
@@ -565,7 +563,7 @@ impl MixalAssembler {
         self.instruction_store_zero_to_address(0);
 
         // if RA is zero, set result to 0 and don't check RX
-        let label = random_string::generate(3, charset.clone());
+        let label = get_random_instruction_label();
         self.instruction_compare_ra(0);
         self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, label.clone());
         self.instruction_enter_immediate_value_to_register(0, MixalRegister::RI1);
@@ -573,7 +571,7 @@ impl MixalAssembler {
         self.instruction_nop_with_label(label.clone());
 
         // if RX is zero, set result to 0
-        let label = random_string::generate(3, charset.clone());
+        let label = get_random_instruction_label();
         self.instruction_compare_rx(0);
         self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, label.clone());
         self.instruction_enter_immediate_value_to_register(0, MixalRegister::RI1);
@@ -584,9 +582,8 @@ impl MixalAssembler {
     }
 
     fn instructions_logical_or(&mut self, address: u16) {
-        let charset: String = ('A'..'Z').map(|c| c as char).collect();
-        let label_true = random_string::generate(3, charset.clone());
-        let label_bottom = random_string::generate(3, charset.clone());
+        let label_true = get_random_instruction_label();
+        let label_bottom = get_random_instruction_label();
 
         // Assume that the result is false
         self.instruction_enter_immediate_value_to_register(0, MixalRegister::RI1);
@@ -618,8 +615,7 @@ impl MixalAssembler {
     }
 
     fn instructions_logical_not(&mut self) {
-        let charset: String = ('A'..'Z').map(|c| c as char).collect();
-        let label = random_string::generate(3, charset.clone());
+        let label = get_random_instruction_label();
     
         self.instruction_store_zero_to_address(0);
         self.instruction_compare_ra(0);

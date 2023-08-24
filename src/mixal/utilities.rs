@@ -36,3 +36,8 @@ pub fn comparison_token_to_jump_instruction(token: Token) -> MixalMnemonic {
         _ => MixalMnemonic::JE
     }
 }
+
+pub fn get_random_instruction_label() -> String {
+    let charset: String = ('A'..'Z').map(|c| c as char).collect();
+    return random_string::generate(3, charset.clone());
+}
