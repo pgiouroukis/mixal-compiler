@@ -21,3 +21,16 @@ pub fn new_node_from_token(token_index: usize, token: Token) ->  Node<usize, Tok
         token
     );
 }
+
+pub fn arithmetic_assignment_operator_to_arithmetic_operator(
+    arithmetic_assignment_operator: Token
+) -> Token {
+    match arithmetic_assignment_operator {
+        Token::AdditionAssignment => Token::Plus,
+        Token::SubtractionAssignment => Token::Minus,
+        Token::MultiplicationAssignment => Token::Asterisk,
+        Token::DivisionAssignment => Token::Slash,
+        Token::ModuloAssignment => Token::Percent,
+        _ => panic!("First argument must be an arithmetic assignment operator")
+    }
+}

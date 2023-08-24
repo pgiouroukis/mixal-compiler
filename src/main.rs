@@ -11,8 +11,12 @@ fn main() {
     let program: String = String::from(
         "{ \
             var alpha: int; \
-            alpha = !(5 + 2 > 3 || 5 + 3 * 2 + 1 < 100) && (-(35 - 37) < 0); \
-            alpha = 1 + !2; \
+            alpha = 3; \
+            alpha += 7; \
+            alpha -= 7; \
+            alpha *= 7; \
+            alpha /= 7; \
+            alpha %= 7; \
         }",
     );
 

@@ -3,6 +3,7 @@ use std::{fs::File, io::Write};
 use std::process::Command;
 use std::collections::HashMap;
 use crate::lexer::Token;
+use crate::utilities::arithmetic_assignment_operator_to_arithmetic_operator;
 use super::{instruction::*, mnemonic::*, register::*, utilities::*};
 
 const PROGRAM_INSTRUCTIONS_ALLOCATION_ADDRESS: u16 = 2000;
@@ -48,6 +49,11 @@ impl MixalAssembler {
                 Token::Assignment => {
                     self.handle_assignment_operator(child.clone());
                 },
+                Token::AdditionAssignment | Token::SubtractionAssignment
+                | Token::MultiplicationAssignment | Token::DivisionAssignment
+                | Token::ModuloAssignment => {
+                    self.handle_arithmetic_assignment_operator(child.clone())
+                }
                 _ => {}
             }
         }
@@ -78,6 +84,25 @@ impl MixalAssembler {
                 MixalRegister::RA
             );
         }
+    }
+
+    fn handle_arithmetic_assignment_operator(&mut self, node: Node<usize, Token>) {
+        let children = node.children();
+        let identifier_node = children.get(0).expect("to exist");
+        let expression_node = children.get(1).expect("to exist");
+        
+        let mut new_expression_node = Node::new(
+            0,
+            arithmetic_assignment_operator_to_arithmetic_operator(node.value().clone())
+        );
+        new_expression_node.add_child(identifier_node.clone());
+        new_expression_node.add_child(expression_node.clone());
+        
+        let mut new_assignment_node = Node::new(1, Token::Assignment);
+        new_assignment_node.add_child(identifier_node.clone());
+        new_assignment_node.add_child(new_expression_node.clone());
+
+        self.handle_assignment_operator(new_assignment_node);
     }
 
     // Evaluates the expression starting from `node`
