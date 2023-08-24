@@ -13,7 +13,8 @@ pub struct MixalAssembler {
     pub output_file_path: String,
     file: File,
     vtable: HashMap<String, u16>,
-    next_memory_address_to_allocate: u16    
+    next_memory_address_to_allocate: u16,
+    loop_stack: Vec<(String,String)>
 }
 
 impl MixalAssembler {
@@ -25,7 +26,8 @@ impl MixalAssembler {
             vtable: HashMap::new(),            
             // we purposely start this from 1 to save address 0 for 'temp',
             // as some operations may need to allocate to memory temporarily
-            next_memory_address_to_allocate: 1            
+            next_memory_address_to_allocate: 1,
+            loop_stack: vec![]
         }
     }
 
@@ -53,9 +55,20 @@ impl MixalAssembler {
                 | Token::MultiplicationAssignment | Token::DivisionAssignment
                 | Token::ModuloAssignment => {
                     self.handle_arithmetic_assignment_operator(child.clone())
-                }
+                },
                 Token::If => {
                     self.handle_if_statement(child.clone());
+                },
+                Token::While => {
+                    self.handle_while_loop(child.clone())
+                },
+                Token::Continue => {
+                    let continue_label = self.loop_stack.last().expect("to exist").0.clone();
+                    self.instruction_jump_to_label(continue_label);
+                },
+                Token::Break => {
+                    let break_label = self.loop_stack.last().expect("to exist").1.clone();
+                    self.instruction_jump_to_label(break_label);
                 }
                 _ => {}
             }
@@ -131,6 +144,31 @@ impl MixalAssembler {
         }
 
         self.instruction_nop_with_label(bottom_label.clone());
+    }
+
+    fn handle_while_loop(&mut self, node: Node<usize, Token>) {
+        let children = node.children();
+        let expression_node = children.get(0).expect("to exist");
+        let code_block_node = children.get(1).expect("to exist");
+
+        let evaluate_expression_label = get_random_instruction_label();
+        let exit_loop_label = get_random_instruction_label();
+
+        self.loop_stack.push((
+            evaluate_expression_label.clone(),
+            exit_loop_label.clone()
+        ));
+
+        self.instruction_nop_with_label(evaluate_expression_label.clone());
+        self.handle_expression_node(expression_node.clone());
+        self.instruction_store_zero_to_address(0);
+        self.instruction_compare_ra(0);
+        self.instruction_jump_to_label_if_comparison_was_true(Token::Equals, exit_loop_label.clone());
+        self.handle_root(code_block_node.clone());
+        self.instruction_jump_to_label(evaluate_expression_label.clone());
+        self.instruction_nop_with_label(exit_loop_label.clone());
+
+        self.loop_stack.pop();
     }
 
     // Evaluates the expression starting from `node`

@@ -10,14 +10,18 @@ fn main() {
 
     let program: String = String::from(
         "{ \
-            var alpha, beta: int; \
-            if (alpha + 3 * 4) { \
-                beta += 4 + 2; \
-            } else if (alpha == 0) { \
-                beta += 4; \
-            } else beta = 3; \
-            if (beta == 3) alpha = 3; \
-            else beta += 3; \
+            var alpha, beta, gamma: int; \
+            while (alpha < 10) { \
+                while (1) { \
+                    if (142 == (140 + 2)*2/2) { \
+                        gamma = 42; \
+                    } \
+                    break; \
+                } \
+                if (alpha == 2) \
+                    beta = 42; \
+                alpha += 1; \
+            } \
         }",
     );
 
