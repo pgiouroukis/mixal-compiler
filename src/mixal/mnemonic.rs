@@ -32,4 +32,7 @@ pub enum MixalMnemonic {
     JGE,
     JNE,
     JLE,
+    JAN,
+    CHAR,
+    OUT,
 }

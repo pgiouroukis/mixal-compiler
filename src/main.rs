@@ -10,20 +10,12 @@ fn main() {
 
     let program: String = String::from(
         "{ \
-            var alpha, beta, gamma, k, l: int; \
-            for (alpha = 1; alpha < 10; alpha += 1) { \
-                if (alpha == 3) gamma = 32; \
-                if (alpha % 2) { \
-                    beta += 1; \
-                } \
-                for (k = 1; k == 1; k += 0) \
-                    break; \
-                for (k = 1; k < 10; k += 1) { \
-                    if (k % 2) \
-                        continue; \
-                    l += 1; \
-                } \
-            } \
+            var alpha, i: int; \
+            alpha = -1; \
+            for (i = 0; i < 4; i+=1) \
+                alpha *= 2; \
+            print alpha; \
+            print alpha * 2 + 3; \
         }",
     );
 

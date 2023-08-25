@@ -74,6 +74,9 @@ impl MixalAssembler {
                 let break_label = self.loop_stack.last().expect("to exist").1.clone();
                 self.instruction_jump_to_label(break_label);
             },
+            Token::Print => {
+                self.handle_print(node.clone());
+            }            
             _ => {}
         }
     }
@@ -208,6 +211,35 @@ impl MixalAssembler {
         self.instruction_nop_with_label(exit_loop_label.clone());
 
         self.loop_stack.pop();
+    }
+
+    fn handle_print(&mut self, node: Node<usize, Token>) {
+        let child = node.children();
+        let expression_node = child.get(0).expect("to exist");
+        
+        self.handle_expression_node(expression_node.clone());
+        self.instruction_char();
+        
+        let memory1 = self.next_memory_address_to_allocate;
+        self.next_memory_address_to_allocate += 1;
+        let memory2 = self.next_memory_address_to_allocate;
+        self.next_memory_address_to_allocate += 1;
+        let memory3 = self.next_memory_address_to_allocate;
+        self.next_memory_address_to_allocate += 1;
+
+        self.instruction_store_register_to_address(memory2, MixalRegister::RA);
+        self.instruction_store_register_to_address(memory3, MixalRegister::RX);
+
+        let label = get_random_instruction_label();
+        self.instruction_enter_two_byte_immediate_value_to_register(45, MixalRegister::RX);
+        self.instruction_jump_to_label_if_register_ra_is_negative(label.clone());
+        self.instruction_enter_two_byte_immediate_value_to_register(44, MixalRegister::RX);
+        self.instruction_nop_with_label(label.clone());
+        self.instruction_store_register_to_address(memory1, MixalRegister::RX);
+        
+        self.instruction_out(memory1);
+
+        self.next_memory_address_to_allocate -= 3;
     }
 
     // Evaluates the expression starting from `node`
@@ -562,6 +594,33 @@ impl MixalAssembler {
             Some(label)
         );
         self.write_to_file(instruction.to_string());        
+    }
+
+    fn instruction_jump_to_label_if_register_ra_is_negative(&mut self, label: String) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::JAN,
+            Some(label)
+        );
+        self.write_to_file(instruction.to_string());        
+    }
+
+    fn instruction_char(&mut self) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::CHAR,
+            None
+        );
+        self.write_to_file(instruction.to_string());         
+    }
+
+    fn instruction_out(&mut self, address: u16) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::OUT,
+            Some(String::from(format!("{}(2:3)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string()); 
     }
 
     fn instructions_prepare_leaf_operands_and_execute_operator(
