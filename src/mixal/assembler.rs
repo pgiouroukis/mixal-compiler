@@ -214,7 +214,7 @@ impl MixalAssembler {
     // and stores the result in register RA
     fn handle_expression_node(&mut self, node: Node<usize, Token>) {
         if let Token::Num(number) = node.value() {
-            self.instruction_enter_two_byte_immediate_value_to_register(*number, MixalRegister::RA);
+            self.instructions_enter_immediate_value_to_register(*number, MixalRegister::RA);
             return;
         } else if let Token::Id(identifier) = node.value() {
             self.instruction_load_address_to_register(
@@ -368,14 +368,23 @@ impl MixalAssembler {
 
     // ---------------------------------------------
     //             MIXAL INSTRUCTIONS              
-    //  The methods below model MIXAL instructions.
-    //  They are prefixed with:
+    // The methods below model MIXAL instructions.
+    // They are prefixed with:
     //   - "instruction_" when they generate a
     //     single instruction.
     //   - "instructions_" when they generate
     //     a group of instructions.
-    //  When invoked, they will append the needed
-    //  instruction(s) to 'self.output_file_path'
+    // When invoked, they will append the needed
+    // instruction(s) to 'self.output_file_path'.
+    // The reason for these prefixes is to convey to
+    // the consumer the approximate cost of the method.
+    // For methods prefixed with "instruction_", the 
+    // consumer is ensured that only one instruction
+    // will be generated, but for methods that are
+    // prefixed with "instructions_", the consumer
+    // will know that more than one instructions will
+    // be generated, thus should be more skeptical 
+    // before invoking them.
     // ---------------------------------------------
 
     fn instruction_set_instructions_allocation_address(&mut self, address: u16) {
@@ -446,6 +455,21 @@ impl MixalAssembler {
             None,
             mixal_register_to_store_mnemonic(register),
             Some(String::from(format!("{}(1:5)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_store_register_to_address_with_field_specification(
+        &mut self, 
+        address: u16, 
+        register: MixalRegister, 
+        field_start: i16,
+        field_end: i16
+    ) {
+        let mut instruction = MixalInstruction::new(
+            None,
+            mixal_register_to_store_mnemonic(register),
+            Some(String::from(format!("{}({}:{})", address.to_string(), field_start, field_end)))
         );
         self.write_to_file(instruction.to_string());
     }
@@ -552,9 +576,9 @@ impl MixalAssembler {
         // Because an operand can be either a Number or a Variable, 
         // we must handle 4 cases, one for every combination.
         if let (Token::Num(number1), Token::Num(number2)) = (left_operand, right_operand) {
-            self.instruction_enter_two_byte_immediate_value_to_register(*number2, MixalRegister::RA);
+            self.instructions_enter_immediate_value_to_register(*number2, MixalRegister::RA);
             self.instruction_store_register_to_address(0, MixalRegister::RA);
-            self.instruction_enter_two_byte_immediate_value_to_register(*number1, MixalRegister::RA);
+            self.instructions_enter_immediate_value_to_register(*number1, MixalRegister::RA);
             operator_fn(self, 0);
         } else if let (Token::Id(identifier1), Token::Id(identifier2)) = (left_operand, right_operand) {
             let identifier1_address = self.vtable.get(identifier1).expect("to exist").clone();
@@ -562,7 +586,7 @@ impl MixalAssembler {
             self.instruction_load_address_to_register(identifier1_address, MixalRegister::RA);
             operator_fn(self, identifier2_address);
         } else if let (Token::Num(number), Token::Id(identifier)) = (left_operand, right_operand) {
-            self.instruction_enter_two_byte_immediate_value_to_register(number.clone(), MixalRegister::RA);
+            self.instructions_enter_immediate_value_to_register(*number, MixalRegister::RA);
             operator_fn(
                 self,
                 self.vtable.get(identifier).expect("to exist").clone()
@@ -570,7 +594,7 @@ impl MixalAssembler {
         } else if let (Token::Id(identifier), Token::Num(number)) = (left_operand, right_operand) {
             let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
             self.instruction_load_address_to_register(identifier_address, MixalRegister::RA);
-            self.instruction_enter_two_byte_immediate_value_to_register(*number, MixalRegister::RX);
+            self.instructions_enter_immediate_value_to_register(*number, MixalRegister::RX);
             self.instruction_store_register_to_address(0, MixalRegister::RX);
             operator_fn(self, 0);
         }
@@ -596,10 +620,10 @@ impl MixalAssembler {
         // Because an operand can be either a Number or a Variable, 
         // we must handle 4 cases, one for every combination.
         if let (Token::Num(number1), Token::Num(number2)) = (left_operand, right_operand) {
-            self.instruction_enter_two_byte_immediate_value_to_register(*number2, MixalRegister::RA);
+            self.instructions_enter_immediate_value_to_register(*number2, MixalRegister::RA);
             self.instruction_store_register_to_address(0, MixalRegister::RA);
             self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RA);
-            self.instruction_enter_two_byte_immediate_value_to_register(*number1, MixalRegister::RX);
+            self.instructions_enter_immediate_value_to_register(*number1, MixalRegister::RX);
             operator_fn(self, 0);
         } if let (Token::Id(identifier1), Token::Id(identifier2)) = (left_operand, right_operand) {
             let identifier1_address = self.vtable.get(identifier1).expect("to exist").clone();
@@ -610,12 +634,12 @@ impl MixalAssembler {
             operator_fn(self, identifier2_address);
         } else if let (Token::Num(number), Token::Id(identifier)) = (left_operand, right_operand){
             self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RA);
-            self.instruction_enter_two_byte_immediate_value_to_register(*number, MixalRegister::RX);
+            self.instructions_enter_immediate_value_to_register(*number, MixalRegister::RX);
             let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
             operator_fn(self, identifier_address);
         } else if let (Token::Id(identifier), Token::Num(number)) = (left_operand, right_operand) {
             let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
-            self.instruction_enter_two_byte_immediate_value_to_register(*number, MixalRegister::RA);
+            self.instructions_enter_immediate_value_to_register(*number, MixalRegister::RA);
             self.instruction_store_register_to_address(0, MixalRegister::RA);
             self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RA);
             self.instruction_load_address_sign_to_register(identifier_address, MixalRegister::RA);
@@ -729,4 +753,52 @@ impl MixalAssembler {
         self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RA);
         self.instruction_nop_with_label(label.clone());        
     }
+
+    // Entering an immediate value to a register is tricky in MIX. 
+    // There is a group of instructions for doing this, but they
+    // support numbers up to 2 MIX bytes (12 bits). If we need to
+    // enter a value greater than 2^12 into a register, we need to
+    // handle it ourselves. This is what we do in this method.
+    fn instructions_enter_immediate_value_to_register(&mut self, value: i32, register: MixalRegister) {
+
+        // For numbers that can fit in 2 MIX bytes, 
+        // we can use a single mix instruction. 
+        if value < i32::pow(2, 12) {
+            self.instruction_enter_two_byte_immediate_value_to_register(value, register);
+            return; 
+        } 
+
+        // But, for numbers that do not fit in 2 MIX bytes,
+        // we need to manually "construct" the immediate value
+        // by breaking it in groups of 2 bytes. This is what we 
+        // do in the code below. Remember, 'value' is always > 0.
+        
+        // Copy the 'value' to a new mutable variable that we can modify
+        let mut mutable_value = value;
+
+        self.instruction_store_zero_to_address(0);
+
+        // Store the 2 LSBytes of the 'mutable_value' in register RA
+        self.instruction_enter_two_byte_immediate_value_to_register(mutable_value, MixalRegister::RA);
+        self.instruction_store_register_to_address_with_field_specification(0, MixalRegister::RA, 4, 5);
+
+        // Shift the 'mutable_value' 2 bytes to the right 
+        // in order to discard the 2 LSBytes
+        mutable_value = mutable_value >> 12;
+
+        // Store the 2 LSBytes of the 'mutable_value' in register RA.
+        // These bytes correspond to the third and forth byte of the
+        // original value (starting the count from the LSB).
+        self.instruction_enter_two_byte_immediate_value_to_register(mutable_value, MixalRegister::RA);
+        self.instruction_store_register_to_address_with_field_specification(0, MixalRegister::RA, 2, 3);
+
+        // If the value does not fit in 4 bytes, repeat the
+        // same proccess as above for the remaining byte
+        if value >= i32::pow(2, 24) {
+            mutable_value = mutable_value >> 12;
+            self.instruction_enter_two_byte_immediate_value_to_register(mutable_value, MixalRegister::RA);
+            self.instruction_store_register_to_address_with_field_specification(0, MixalRegister::RA, 1, 1);            
+        }
+        self.instruction_load_address_to_register(0, register);        
+    }    
 }
