@@ -38,40 +38,40 @@ impl MixalAssembler {
         Command::new("mixasm").arg(self.output_file_path.clone()).output().expect("to execute");
     }
 
-    fn handle_root(&mut self, node: Node<usize, Token>) {
-        let children = node.children();
-        for child in children {
-            match child.value() {
-                Token::Ast(_) => {
+    fn handle_root(&mut self, node: Node<usize, Token>) {        
+        match node.value() {
+            Token::Ast(_) => {
+                let children = node.children();
+                for child in children {
                     self.handle_root(child.clone());
-                },
-                Token::Int => {
-                    self.handle_variable_declaration(child.clone());
-                },
-                Token::Assignment => {
-                    self.handle_assignment_operator(child.clone());
-                },
-                Token::AdditionAssignment | Token::SubtractionAssignment
-                | Token::MultiplicationAssignment | Token::DivisionAssignment
-                | Token::ModuloAssignment => {
-                    self.handle_arithmetic_assignment_operator(child.clone())
-                },
-                Token::If => {
-                    self.handle_if_statement(child.clone());
-                },
-                Token::While => {
-                    self.handle_while_loop(child.clone())
-                },
-                Token::Continue => {
-                    let continue_label = self.loop_stack.last().expect("to exist").0.clone();
-                    self.instruction_jump_to_label(continue_label);
-                },
-                Token::Break => {
-                    let break_label = self.loop_stack.last().expect("to exist").1.clone();
-                    self.instruction_jump_to_label(break_label);
                 }
-                _ => {}
-            }
+            },
+            Token::Int => {
+                self.handle_variable_declaration(node.clone());
+            },
+            Token::Assignment => {
+                self.handle_assignment_operator(node.clone());
+            },
+            Token::AdditionAssignment | Token::SubtractionAssignment
+            | Token::MultiplicationAssignment | Token::DivisionAssignment
+            | Token::ModuloAssignment => {
+                self.handle_arithmetic_assignment_operator(node.clone())
+            },
+            Token::If => {
+                self.handle_if_statement(node.clone());
+            },
+            Token::While => {
+                self.handle_while_loop(node.clone())
+            },
+            Token::Continue => {
+                let continue_label = self.loop_stack.last().expect("to exist").0.clone();
+                self.instruction_jump_to_label(continue_label);
+            },
+            Token::Break => {
+                let break_label = self.loop_stack.last().expect("to exist").1.clone();
+                self.instruction_jump_to_label(break_label);
+            },
+            _ => {}
         }
     }
 
