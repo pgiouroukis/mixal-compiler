@@ -10,17 +10,19 @@ fn main() {
 
     let program: String = String::from(
         "{ \
-            var alpha, beta, gamma: int; \
-            while (alpha < 10) { \
-                while (1) { \
-                    if (142 == (140 + 2)*2/2) { \
-                        gamma = 42; \
-                    } \
-                    break; \
+            var alpha, beta, gamma, k, l: int; \
+            for (alpha = 1; alpha < 10; alpha += 1) { \
+                if (alpha == 3) gamma = 32; \
+                if (alpha % 2) { \
+                    beta += 1; \
                 } \
-                if (alpha == 2) \
-                    beta = 42; \
-                alpha += 1; \
+                for (k = 1; k == 1; k += 0) \
+                    break; \
+                for (k = 1; k < 10; k += 1) { \
+                    if (k % 2) \
+                        continue; \
+                    l += 1; \
+                } \
             } \
         }",
     );

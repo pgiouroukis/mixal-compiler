@@ -63,6 +63,9 @@ impl MixalAssembler {
             Token::While => {
                 self.handle_while_loop(node.clone())
             },
+            Token::For => {
+                self.handle_for_loop(node.clone());
+            },
             Token::Continue => {
                 let continue_label = self.loop_stack.last().expect("to exist").0.clone();
                 self.instruction_jump_to_label(continue_label);
@@ -165,6 +168,42 @@ impl MixalAssembler {
         self.instruction_compare_ra(0);
         self.instruction_jump_to_label_if_comparison_was_true(Token::Equals, exit_loop_label.clone());
         self.handle_root(code_block_node.clone());
+        self.instruction_jump_to_label(evaluate_expression_label.clone());
+        self.instruction_nop_with_label(exit_loop_label.clone());
+
+        self.loop_stack.pop();
+    }
+
+    fn handle_for_loop(&mut self, node: Node<usize, Token>) {
+        let children = node.children();
+        let assignment_node = children.get(0).expect("to exist");
+        let expression_node = children.get(1).expect("to exist");
+        let statement_node = children.get(2).expect("to exist");
+        let code_block_node = children.get(3).expect("to exist");
+
+        let evaluate_expression_label = get_random_instruction_label();
+        let exit_loop_label = get_random_instruction_label();
+        
+        // In the case of a for loop, when we encounter 'continue', we still
+        // need to run the 3rd part of the loop ('statement_node'). Because of
+        // this, we will also need a label so we can skip the rest of the loop's 
+        // code but still execute the 'statement_node'. We define that label here.
+        let evaluate_expression_label_for_continue = get_random_instruction_label();
+
+        self.loop_stack.push((
+            evaluate_expression_label_for_continue.clone(),
+            exit_loop_label.clone()
+        ));
+
+        self.handle_root(assignment_node.clone());
+        self.instruction_nop_with_label(evaluate_expression_label.clone());
+        self.handle_expression_node(expression_node.clone());
+        self.instruction_store_zero_to_address(0);
+        self.instruction_compare_ra(0);
+        self.instruction_jump_to_label_if_comparison_was_true(Token::Equals, exit_loop_label.clone());
+        self.handle_root(code_block_node.clone());
+        self.instruction_nop_with_label(evaluate_expression_label_for_continue.clone());
+        self.handle_root(statement_node.clone());
         self.instruction_jump_to_label(evaluate_expression_label.clone());
         self.instruction_nop_with_label(exit_loop_label.clone());
 
