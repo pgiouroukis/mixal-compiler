@@ -214,7 +214,7 @@ impl MixalAssembler {
     // and stores the result in register RA
     fn handle_expression_node(&mut self, node: Node<usize, Token>) {
         if let Token::Num(number) = node.value() {
-            self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RA);
+            self.instruction_enter_two_byte_immediate_value_to_register(*number, MixalRegister::RA);
             return;
         } else if let Token::Id(identifier) = node.value() {
             self.instruction_load_address_to_register(
@@ -296,7 +296,7 @@ impl MixalAssembler {
             if let Token::Slash | Token::Percent = node.value() {
                 self.instruction_store_register_to_address(0, MixalRegister::RA);
                 self.instruction_load_address_to_register(0, MixalRegister::RX);
-                self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+                self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RA);
                 self.instruction_load_address_sign_to_register(0, MixalRegister::RA);                
             }
             
@@ -459,7 +459,7 @@ impl MixalAssembler {
         self.write_to_file(instruction.to_string());
     }
 
-    fn instruction_enter_immediate_value_to_register(&mut self, value: i32, register: MixalRegister) {
+    fn instruction_enter_two_byte_immediate_value_to_register(&mut self, value: i32, register: MixalRegister) {
         let mut instruction = MixalInstruction::new(
             None,
             mixal_register_to_enter_mnemonic(register, value),
@@ -552,9 +552,9 @@ impl MixalAssembler {
         // Because an operand can be either a Number or a Variable, 
         // we must handle 4 cases, one for every combination.
         if let (Token::Num(number1), Token::Num(number2)) = (left_operand, right_operand) {
-            self.instruction_enter_immediate_value_to_register(*number2, MixalRegister::RA);
+            self.instruction_enter_two_byte_immediate_value_to_register(*number2, MixalRegister::RA);
             self.instruction_store_register_to_address(0, MixalRegister::RA);
-            self.instruction_enter_immediate_value_to_register(*number1, MixalRegister::RA);
+            self.instruction_enter_two_byte_immediate_value_to_register(*number1, MixalRegister::RA);
             operator_fn(self, 0);
         } else if let (Token::Id(identifier1), Token::Id(identifier2)) = (left_operand, right_operand) {
             let identifier1_address = self.vtable.get(identifier1).expect("to exist").clone();
@@ -562,7 +562,7 @@ impl MixalAssembler {
             self.instruction_load_address_to_register(identifier1_address, MixalRegister::RA);
             operator_fn(self, identifier2_address);
         } else if let (Token::Num(number), Token::Id(identifier)) = (left_operand, right_operand) {
-            self.instruction_enter_immediate_value_to_register(number.clone(), MixalRegister::RA);
+            self.instruction_enter_two_byte_immediate_value_to_register(number.clone(), MixalRegister::RA);
             operator_fn(
                 self,
                 self.vtable.get(identifier).expect("to exist").clone()
@@ -570,7 +570,7 @@ impl MixalAssembler {
         } else if let (Token::Id(identifier), Token::Num(number)) = (left_operand, right_operand) {
             let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
             self.instruction_load_address_to_register(identifier_address, MixalRegister::RA);
-            self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RX);
+            self.instruction_enter_two_byte_immediate_value_to_register(*number, MixalRegister::RX);
             self.instruction_store_register_to_address(0, MixalRegister::RX);
             operator_fn(self, 0);
         }
@@ -596,28 +596,28 @@ impl MixalAssembler {
         // Because an operand can be either a Number or a Variable, 
         // we must handle 4 cases, one for every combination.
         if let (Token::Num(number1), Token::Num(number2)) = (left_operand, right_operand) {
-            self.instruction_enter_immediate_value_to_register(*number2, MixalRegister::RA);
+            self.instruction_enter_two_byte_immediate_value_to_register(*number2, MixalRegister::RA);
             self.instruction_store_register_to_address(0, MixalRegister::RA);
-            self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
-            self.instruction_enter_immediate_value_to_register(*number1, MixalRegister::RX);
+            self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RA);
+            self.instruction_enter_two_byte_immediate_value_to_register(*number1, MixalRegister::RX);
             operator_fn(self, 0);
         } if let (Token::Id(identifier1), Token::Id(identifier2)) = (left_operand, right_operand) {
             let identifier1_address = self.vtable.get(identifier1).expect("to exist").clone();
             let identifier2_address = self.vtable.get(identifier2).expect("to exist").clone();
             self.instruction_load_address_to_register(identifier1_address, MixalRegister::RX);
-            self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+            self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RA);
             self.instruction_load_address_sign_to_register(identifier1_address, MixalRegister::RA);
             operator_fn(self, identifier2_address);
         } else if let (Token::Num(number), Token::Id(identifier)) = (left_operand, right_operand){
-            self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
-            self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RX);
+            self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RA);
+            self.instruction_enter_two_byte_immediate_value_to_register(*number, MixalRegister::RX);
             let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
             operator_fn(self, identifier_address);
         } else if let (Token::Id(identifier), Token::Num(number)) = (left_operand, right_operand) {
             let identifier_address = self.vtable.get(identifier).expect("to exist").clone();
-            self.instruction_enter_immediate_value_to_register(*number, MixalRegister::RA);
+            self.instruction_enter_two_byte_immediate_value_to_register(*number, MixalRegister::RA);
             self.instruction_store_register_to_address(0, MixalRegister::RA);
-            self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+            self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RA);
             self.instruction_load_address_sign_to_register(identifier_address, MixalRegister::RA);
             self.instruction_load_address_to_register(identifier_address, MixalRegister::RX);
             operator_fn(self, 0);
@@ -646,12 +646,12 @@ impl MixalAssembler {
     fn instructions_load_comparison_result_to_register_ra(&mut self, comparison_token: Token) {
         let label = get_random_instruction_label();
 
-        self.instruction_enter_immediate_value_to_register(1, MixalRegister::RA);
+        self.instruction_enter_two_byte_immediate_value_to_register(1, MixalRegister::RA);
         self.instruction_jump_to_label_if_comparison_was_true(
             comparison_token, 
             label.clone()
         );
-        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+        self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RA);
         self.instruction_nop_with_label(label.clone());
     }
 
@@ -659,7 +659,7 @@ impl MixalAssembler {
         let bottom_label = get_random_instruction_label();
 
         // Assume that the result is true
-        self.instruction_enter_immediate_value_to_register(1, MixalRegister::RI1);
+        self.instruction_enter_two_byte_immediate_value_to_register(1, MixalRegister::RI1);
 
         // store operand2 to RX
         self.instruction_load_address_to_register(address, MixalRegister::RX);
@@ -671,7 +671,7 @@ impl MixalAssembler {
         let label = get_random_instruction_label();
         self.instruction_compare_ra(0);
         self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, label.clone());
-        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RI1);
+        self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RI1);
         self.instruction_jump_to_label(bottom_label.clone());
         self.instruction_nop_with_label(label.clone());
 
@@ -679,7 +679,7 @@ impl MixalAssembler {
         let label = get_random_instruction_label();
         self.instruction_compare_rx(0);
         self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, label.clone());
-        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RI1);
+        self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RI1);
         self.instruction_nop_with_label(label.clone());
 
         self.instruction_nop_with_label(bottom_label.clone());
@@ -691,7 +691,7 @@ impl MixalAssembler {
         let label_bottom = get_random_instruction_label();
 
         // Assume that the result is false
-        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RI1);
+        self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RI1);
 
         // Store operand2 to RX
         self.instruction_load_address_to_register(address, MixalRegister::RX);
@@ -712,7 +712,7 @@ impl MixalAssembler {
         self.instruction_jump_to_label(label_bottom.clone());
 
         self.instruction_nop_with_label(label_true.clone());
-        self.instruction_enter_immediate_value_to_register(1, MixalRegister::RI1);
+        self.instruction_enter_two_byte_immediate_value_to_register(1, MixalRegister::RI1);
 
         self.instruction_nop_with_label(label_bottom.clone());
 
@@ -724,9 +724,9 @@ impl MixalAssembler {
     
         self.instruction_store_zero_to_address(0);
         self.instruction_compare_ra(0);
-        self.instruction_enter_immediate_value_to_register(1, MixalRegister::RA);
+        self.instruction_enter_two_byte_immediate_value_to_register(1, MixalRegister::RA);
         self.instruction_jump_to_label_if_comparison_was_true(Token::Equals, label.clone());
-        self.instruction_enter_immediate_value_to_register(0, MixalRegister::RA);
+        self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RA);
         self.instruction_nop_with_label(label.clone());        
     }
 }
