@@ -24,7 +24,6 @@ fn main() {
     
     if parser.analyze_grammar() {
         println!("Parsing successful");
-        println!("AST: {:?}", parser.ast)
     } else {
         println!("Parsing failed");
     }

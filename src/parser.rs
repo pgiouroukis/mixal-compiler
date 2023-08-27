@@ -339,7 +339,6 @@ impl Parser {
         ], false);
 
         if rule_result.matched && rule_result.tokens_consumed > 0 {
-            println!("precedence_1_rule (exp) starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
             self.construct_expression_node_from_token_range(
                 self.pos-rule_result.tokens_consumed,
                 self.pos
@@ -358,7 +357,6 @@ impl Parser {
         ], false);
 
         if rule_result.matched && rule_result.tokens_consumed > 1 {
-            println!("precedence_2_rule starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
             self.construct_expression_node_from_token_range(
                 self.pos-rule_result.tokens_consumed,
                 self.pos
@@ -377,7 +375,6 @@ impl Parser {
         ], false);
 
         if rule_result.matched && rule_result.tokens_consumed > 1 {
-            println!("precedence_3_rule starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
             self.construct_expression_node_from_token_range(
                 self.pos-rule_result.tokens_consumed,
                 self.pos
@@ -396,7 +393,6 @@ impl Parser {
         ], false);
 
         if rule_result.matched && rule_result.tokens_consumed > 1 {
-            println!("precedence_4_rule starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
             self.construct_expression_node_from_token_range(
                 self.pos-rule_result.tokens_consumed,
                 self.pos
@@ -415,7 +411,6 @@ impl Parser {
         ], false);
 
         if rule_result.matched && rule_result.tokens_consumed > 1 {
-            println!("precedence_5_rule starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
             self.construct_expression_node_from_token_range(
                 self.pos-rule_result.tokens_consumed,
                 self.pos
@@ -434,7 +429,6 @@ impl Parser {
         ], false);
 
         if rule_result.matched && rule_result.tokens_consumed > 1 {
-            println!("precedence_6_rule starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
             self.construct_expression_node_from_token_range(
                 self.pos-rule_result.tokens_consumed,
                 self.pos
@@ -455,7 +449,6 @@ impl Parser {
 
         if rule_result.matched && rule_result.tokens_consumed == 2 {
             // For cases like -3, -alpha, !a, !3
-            println!("unary starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);
             let index = self.pos-rule_result.tokens_consumed;
             let unary_token = (*self.tokens.get(index).clone().expect("has value")).clone();
             let value_token = (*self.tokens.get(index+1).clone().expect("has value")).clone();
@@ -480,7 +473,6 @@ impl Parser {
             // For cases like -(1+3), !(alpha+2).
             // Notice that the expression inside the parentheses
             // will have already been parsed and stored in the map.
-            println!("unary starting from token {:?} consuming {} tokens", self.tokens[self.pos-rule_result.tokens_consumed], rule_result.tokens_consumed);           
             let token_range_start = self.pos-rule_result.tokens_consumed;
             let token_range_end = self.pos;
             let token = (*self.tokens.get(token_range_start).clone().expect("has value")).clone();
