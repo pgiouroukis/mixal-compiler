@@ -12,10 +12,10 @@ fn main() {
 
     let program: String = String::from(
         "{ \
-            var i, j, i: int; \
-            var i: int; \
+            var i, j: int; \
             i = 1;
             j = 2;
+            k = 3;
         }",
     );
 

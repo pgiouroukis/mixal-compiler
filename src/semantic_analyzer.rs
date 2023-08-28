@@ -18,6 +18,7 @@ impl<'a> SemanticAnalyzer<'a> {
     pub fn run(&mut self) -> bool {
         let mut violations = 0;
         violations += self.populate_symbol_table_and_check_for_variable_re_declarations();
+        violations += self.check_for_undeclared_identifiers();
         return violations == 0;
     }
 
@@ -38,5 +39,18 @@ impl<'a> SemanticAnalyzer<'a> {
             }
         }
         return violations;
+    }
+
+    fn check_for_undeclared_identifiers(&self) -> u8 {
+        let violating_nodes = self.ast.find(&|x| {
+            if let Token::Id(identifier_name) = x.value() {
+                if !self.symbol_table.contains(&identifier_name) {
+                    println!("ERROR: undeclared identifier '{}'", identifier_name);
+                    return true;
+                }
+            }
+            return false;
+        });
+        return violating_nodes.len().try_into().unwrap();
     }
 }
