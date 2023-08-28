@@ -19,6 +19,7 @@ impl<'a> SemanticAnalyzer<'a> {
         let mut violations = 0;
         violations += self.populate_symbol_table_and_check_for_variable_re_declarations();
         violations += self.check_for_undeclared_identifiers();
+        violations += self.check_for_break_or_continue_outside_of_loop_block();
         return violations == 0;
     }
 
@@ -53,4 +54,34 @@ impl<'a> SemanticAnalyzer<'a> {
         });
         return violating_nodes.len().try_into().unwrap();
     }
+
+    fn check_for_break_or_continue_outside_of_loop_block(&self) -> u8 {
+        let mut violations = HashSet::new();
+
+        // Assume all 'continue' and 'break' statements are violations
+        let continue_and_break_nodes = 
+            self.ast.find(&|x| *x.value() == Token::Continue || *x.value() == Token::Break);
+        for node in continue_and_break_nodes {
+            violations.insert(node.id());
+        }
+
+        // Find 'continue' and 'break' statements that are not
+        // violations (ie that have a 'while' or 'for' ancestor)
+        // and remove them from the violations set
+        let while_and_for_nodes = 
+            self.ast.find(&|x| *x.value() == Token::While || *x.value() == Token::For);
+        for node in while_and_for_nodes {
+            let continue_and_break_nodes_under_node 
+                = node.find(&|x| *x.value() == Token::Continue || *x.value() == Token::Break);
+            for node in continue_and_break_nodes_under_node {
+                violations.remove(node.id());
+            }
+        }
+        
+        for _ in &violations {
+            println!("ERROR: continue/break statement outside of loop");
+        }
+
+        return violations.len().try_into().unwrap();
+    }    
 }
