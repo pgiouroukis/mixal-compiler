@@ -315,14 +315,22 @@ impl MixalAssembler {
             // use registers, but we don't implement it this way since the
             // code that decides that could be very comlicated.
 
-            self.handle_expression_node(right_operand.clone());
             let temp_memory_address = self.next_memory_address_to_allocate;
             self.next_memory_address_to_allocate += 1;
-            self.instruction_store_register_to_address(
-                temp_memory_address,
-                MixalRegister::RA
-            );
-            self.handle_expression_node(left_operand.clone());
+            if let Token::And = node.value() {
+                // The following method performs short-circuit evaluation
+                self.instructions_prepare_logical_and_operands(left_operand.clone(),right_operand.clone(), temp_memory_address);
+            } else if let Token::Or = node.value() {
+                // The following method performs short-circuit evaluation
+                self.instructions_prepare_logical_or_operands(left_operand.clone(),right_operand.clone(), temp_memory_address);
+            } else {
+                self.handle_expression_node(right_operand.clone());
+                self.instruction_store_register_to_address(
+                    temp_memory_address,
+                    MixalRegister::RA
+                );
+                self.handle_expression_node(left_operand.clone());
+            }
 
             // As explained above, division and modulo require some special treatment
             if let Token::Slash | Token::Percent = node.value() {
@@ -769,6 +777,32 @@ impl MixalAssembler {
         self.instructions_move_register_to_register(MixalRegister::RI1, MixalRegister::RA);
     }
 
+    // The following method will prepare the operands of the
+    // logical 'AND' operator with short-circuit evaluation.
+    // If needed, one of the operands will be stored in RA and the
+    // other one in 'address' (depends on the short-circuit evaluation).
+    fn instructions_prepare_logical_and_operands(&mut self, left_operand: Node<usize, Token>, right_operand: Node<usize, Token>, address: u16) {
+        let anchor_label = get_random_instruction_label();
+                
+        // Evaluate the left operand and compare it with 0.
+        // If it is 0, we do not need to evaluate the right
+        // operand, thus we jump to the 'anchor_label' label.
+        self.handle_expression_node(left_operand.clone());
+        self.instruction_store_zero_to_address(0);
+        self.instruction_compare_ra(0);
+        self.instruction_jump_to_label_if_comparison_was_true(Token::Equals, anchor_label.clone());
+
+        // If this code is reached, then the left operand is true. Thus, we
+        // also need to evaluate the right operand to determine the result.
+        // Since we know that the left operand is true, we store 1 in 'address'.
+        // We then evaluate the right operand and store it in register RA.
+        self.instruction_enter_two_byte_immediate_value_to_register(1, MixalRegister::RX);
+        self.instruction_store_register_to_address(address, MixalRegister::RX);        
+        self.handle_expression_node(right_operand.clone());
+
+        self.instruction_nop_with_label(anchor_label);        
+    }
+    
     fn instructions_logical_or(&mut self, address: u16) {
         let label_true = get_random_instruction_label();
         let label_bottom = get_random_instruction_label();
@@ -786,7 +820,7 @@ impl MixalAssembler {
         self.instruction_compare_ra(0);
         self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, label_true.clone());
     
-        // If RA != 0, jump to 'label_true'
+        // If RX != 0, jump to 'label_true'
         self.instruction_compare_rx(0);
         self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, label_true.clone());
 
@@ -800,6 +834,32 @@ impl MixalAssembler {
         self.instruction_nop_with_label(label_bottom.clone());
 
         self.instructions_move_register_to_register(MixalRegister::RI1, MixalRegister::RA);
+    }
+
+    // The following method will prepare the operands of the
+    // logical 'OR' operator with short-circuit evaluation.
+    // If needed, one of the operands will be stored in RA and the
+    // other one in 'address' (depends on the short-circuit evaluation).    
+    fn instructions_prepare_logical_or_operands(&mut self, left_operand: Node<usize, Token>, right_operand: Node<usize, Token>, address: u16) {
+        let anchor_label = get_random_instruction_label();
+                
+        // Evaluate the left operand and compare it with 0.
+        // If it is not 0, we do not need to evaluate the
+        // second operand, thus we jump to the 'anchor_label' label.
+        self.handle_expression_node(left_operand.clone());
+        self.instruction_store_zero_to_address(0);
+        self.instruction_compare_ra(0);
+        self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, anchor_label.clone());
+
+        // If this is reached, then the left operand is false. Thus, we
+        // also need to evaluate the right operand to determine the result.
+        // Since we know that the left operand is false, we store 0 in 'address'
+        // We then evaluate the right operand and store it in register RA.
+        self.instruction_enter_two_byte_immediate_value_to_register(0, MixalRegister::RX);
+        self.instruction_store_register_to_address(address, MixalRegister::RX);
+        self.handle_expression_node(right_operand.clone());
+
+        self.instruction_nop_with_label(anchor_label);        
     }
 
     fn instructions_logical_not(&mut self) {

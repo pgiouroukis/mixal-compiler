@@ -12,21 +12,19 @@ fn main() {
 
     let program: String = String::from(
         "{ \
-            var i, j: int; \
-            i = 1; \
-            j = 2; \
-            while (i == 2) { \
-                if (i == 2) { \
-                    continue; \
-                } \
-                break; \
-            } \
-            if (i == 1) {
-                break; \
-            }
-            if (i == 2) {
-                continue; \
-            }            
+            var x, y, a: int; \
+            a = (x + 1 - 1) || (y + 1 - 1); \
+            print a; \
+            a = (x + 1 - 1 + 1) || (y + 1 - 1); \
+            print a; \
+            a = (x + 1 - 1) || (y + 1 - 1 + 1); \
+            print a; \
+            a = (x + 1 - 1) && (y + 1 - 1); \
+            print a; \
+            a = (x + 1 - 1 + 1) && (y + 1 - 1); \
+            print a; \
+            a = (x + 1 - 1) && (y + 1 - 1 + 1); \
+            print a; \
         }",
     );
 
