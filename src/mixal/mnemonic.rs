@@ -25,6 +25,7 @@ pub enum MixalMnemonic {
     DIV,
     CMPA,
     CMPX,
+    CMP1,
     JSJ,
     JL,
     JE,
@@ -35,4 +36,5 @@ pub enum MixalMnemonic {
     JAN,
     CHAR,
     OUT,
+    HLT,
 }

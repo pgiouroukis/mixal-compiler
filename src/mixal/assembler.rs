@@ -396,7 +396,7 @@ impl MixalAssembler {
             Token::Plus => MixalAssembler::instruction_add,
             Token::Minus => MixalAssembler::instruction_subtract,
             Token::Asterisk => MixalAssembler::instruction_multiply,
-            Token::Slash | Token::Percent => MixalAssembler::instruction_divide_and_modulo,
+            Token::Slash | Token::Percent => MixalAssembler::instructions_divide_and_modulo,
             Token::Equals | Token::NotEquals
             | Token::LessThan | Token::LessThanOrEquals
             | Token::GreaterThan | Token::GreaterThanOrEquals => MixalAssembler::instruction_compare_ra,
@@ -559,7 +559,20 @@ impl MixalAssembler {
         self.write_to_file(instruction.to_string());
     }
 
-    fn instruction_divide_and_modulo(&mut self, address: u16) {
+    // Before running the 'DIV' instruction, we need to check if the divisor
+    // is zero. If it is, we throw an exception and halt the program.
+    fn instructions_divide_and_modulo(&mut self, address: u16) {
+        let divisor_not_zero_label = get_random_instruction_label();
+
+        // We use the register RI1 for the comparison because
+        // registers RA and RX are already used for the dividend.
+        self.instructions_enter_immediate_value_to_register(0, MixalRegister::RI1);
+        self.instruction_compare_ri1(address);
+        self.instruction_jump_to_label_if_comparison_was_true(Token::NotEquals, divisor_not_zero_label.clone());
+        
+        self.instructions_throw_exception(1);
+
+        self.instruction_nop_with_label(divisor_not_zero_label);
         let mut instruction = MixalInstruction::new(
             None, 
             MixalMnemonic::DIV,
@@ -581,6 +594,15 @@ impl MixalAssembler {
         let mut instruction = MixalInstruction::new(
             None, 
             MixalMnemonic::CMPX,
+            Some(String::from(format!("{}(0:5)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string());
+    }
+
+    fn instruction_compare_ri1(&mut self, address: u16) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::CMP1,
             Some(String::from(format!("{}(0:5)", address.to_string())))
         );
         self.write_to_file(instruction.to_string());
@@ -627,6 +649,15 @@ impl MixalAssembler {
             None, 
             MixalMnemonic::OUT,
             Some(String::from(format!("{}(2:3)", address.to_string())))
+        );
+        self.write_to_file(instruction.to_string()); 
+    }
+
+    fn instruction_halt(&mut self) {
+        let mut instruction = MixalInstruction::new(
+            None, 
+            MixalMnemonic::HLT,
+            None
         );
         self.write_to_file(instruction.to_string()); 
     }
@@ -919,5 +950,34 @@ impl MixalAssembler {
             self.instruction_store_register_to_address_with_field_specification(0, MixalRegister::RA, 1, 1);            
         }
         self.instruction_load_address_to_register(0, register);        
-    }    
+    }
+
+    fn instructions_throw_exception(&mut self, exception_code: i32) {
+        let memory1 = self.next_memory_address_to_allocate;
+        self.next_memory_address_to_allocate += 1;
+        let memory2 = self.next_memory_address_to_allocate;
+        self.next_memory_address_to_allocate += 1;
+        let memory3 = self.next_memory_address_to_allocate;
+        self.next_memory_address_to_allocate += 1;
+
+        // The two magic constants below are used to represent the
+        // MIX bytes that map to the characters "EXCEP" and "TION ".
+        // At some point, I need to add the functionality to print
+        // any text at the console, but for now I will do it this.
+        // TODO: add functionality to print any text at the console.
+        self.instructions_enter_immediate_value_to_register(90976593, MixalRegister::RA);
+        self.instruction_store_register_to_address(memory1, MixalRegister::RA);
+        self.instructions_enter_immediate_value_to_register(388301760, MixalRegister::RA);
+        self.instruction_store_register_to_address(memory2, MixalRegister::RA);
+        
+        self.instruction_enter_two_byte_immediate_value_to_register(exception_code, MixalRegister::RA);
+        self.instruction_char();
+        self.instruction_store_register_to_address(memory3, MixalRegister::RX);
+        
+        self.instruction_out(memory1);
+        
+        self.next_memory_address_to_allocate -= 3;
+
+        self.instruction_halt();        
+    }
 }

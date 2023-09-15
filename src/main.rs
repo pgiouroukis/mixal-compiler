@@ -12,19 +12,10 @@ fn main() {
 
     let program: String = String::from(
         "{ \
-            var x, y, a: int; \
-            a = (x + 1 - 1) || (y + 1 - 1); \
-            print a; \
-            a = (x + 1 - 1 + 1) || (y + 1 - 1); \
-            print a; \
-            a = (x + 1 - 1) || (y + 1 - 1 + 1); \
-            print a; \
-            a = (x + 1 - 1) && (y + 1 - 1); \
-            print a; \
-            a = (x + 1 - 1 + 1) && (y + 1 - 1); \
-            print a; \
-            a = (x + 1 - 1) && (y + 1 - 1 + 1); \
-            print a; \
+            var x, y: int; \
+            x = 5; \
+            y = 1 + 4 * 3 - 13; \
+            print x / y; \
         }",
     );
 
