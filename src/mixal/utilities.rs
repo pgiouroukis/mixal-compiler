@@ -1,3 +1,5 @@
+use std::process::Command;
+
 use crate::lexer::Token;
 use super::{register::MixalRegister, mnemonic::MixalMnemonic};
 
@@ -40,4 +42,15 @@ pub fn comparison_token_to_jump_instruction(token: Token) -> MixalMnemonic {
 pub fn get_random_instruction_label() -> String {
     let charset: String = ('A'..'Z').map(|c| c as char).collect();
     return random_string::generate(3, charset.clone());
+}
+
+pub fn run_mix_binary_file_and_print_output(file_path: &String) {
+    Command::new("mixvm")
+        .arg("--run")
+        .arg(file_path)
+        .output()
+        .expect("to execute")
+        .stdout
+        .iter()
+        .for_each(|x| print!("{}", *x as char));    
 }
