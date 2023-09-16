@@ -7,6 +7,8 @@ use crate::utilities::arithmetic_assignment_operator_to_arithmetic_operator;
 use super::{instruction::*, mnemonic::*, register::*, utilities::*};
 
 const PROGRAM_INSTRUCTIONS_ALLOCATION_ADDRESS: u16 = 2000;
+// The following is defined in MIX specs. Measured in words.
+const STANDARD_OUTPUT_DEVICE_BLOCK_SIZE: u16 = 14;
 
 pub struct MixalAssembler {
     pub ast: Node<usize, Token>,
@@ -14,6 +16,14 @@ pub struct MixalAssembler {
     file: File,
     vtable: HashMap<String, u16>,
     next_memory_address_to_allocate: u16,
+    // The standard output device block is a block of memory that
+    // we allocate at the beginning of the program. We use that 
+    // block to store the characters that we want to print to the
+    // standard output device. The reason we allocate it at the
+    // beginning of the program is because we want to make sure
+    // that it is always available for use and it will not be 
+    // polluted with data from other parts of the program.
+    standard_output_device_block_memory_address: u16,
     loop_stack: Vec<(String,String)>
 }
 
@@ -27,6 +37,8 @@ impl MixalAssembler {
             // we purposely start this from 1 to save address 0 for 'temp',
             // as some operations may need to allocate to memory temporarily
             next_memory_address_to_allocate: 1,
+            // we allocate the standard output device block at the end of the address space.
+            standard_output_device_block_memory_address: PROGRAM_INSTRUCTIONS_ALLOCATION_ADDRESS - STANDARD_OUTPUT_DEVICE_BLOCK_SIZE,
             loop_stack: vec![]
         }
     }
@@ -220,26 +232,17 @@ impl MixalAssembler {
         self.handle_expression_node(expression_node.clone());
         self.instruction_char();
         
-        let memory1 = self.next_memory_address_to_allocate;
-        self.next_memory_address_to_allocate += 1;
-        let memory2 = self.next_memory_address_to_allocate;
-        self.next_memory_address_to_allocate += 1;
-        let memory3 = self.next_memory_address_to_allocate;
-        self.next_memory_address_to_allocate += 1;
-
-        self.instruction_store_register_to_address(memory2, MixalRegister::RA);
-        self.instruction_store_register_to_address(memory3, MixalRegister::RX);
+        self.instruction_store_register_to_address(self.standard_output_device_block_memory_address + 1, MixalRegister::RA);
+        self.instruction_store_register_to_address(self.standard_output_device_block_memory_address + 2, MixalRegister::RX);
 
         let label = get_random_instruction_label();
         self.instruction_enter_two_byte_immediate_value_to_register(45, MixalRegister::RX);
         self.instruction_jump_to_label_if_register_ra_is_negative(label.clone());
         self.instruction_enter_two_byte_immediate_value_to_register(44, MixalRegister::RX);
         self.instruction_nop_with_label(label.clone());
-        self.instruction_store_register_to_address(memory1, MixalRegister::RX);
-        
-        self.instruction_out(memory1);
+        self.instruction_store_register_to_address(self.standard_output_device_block_memory_address, MixalRegister::RX);
 
-        self.next_memory_address_to_allocate -= 3;
+        self.instruction_out(self.standard_output_device_block_memory_address);
     }
 
     // Evaluates the expression starting from `node`
